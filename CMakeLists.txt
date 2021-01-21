@@ -7,8 +7,9 @@ project(simulation_bluerov)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED roscpp rospy std_msgs genmsg)
-
+find_package(catkin REQUIRED roscpp rospy std_msgs genmsg gazebo_dev)
+find_package(Boost REQUIRED COMPONENTS system)
+find_package(OpenCV REQUIRED)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -104,9 +105,12 @@ generate_messages(DEPENDENCIES std_msgs)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES simulation_bluerov
-#  CATKIN_DEPENDS other_catkin_pkg
+  INCLUDE_DIRS include
+  LIBRARIES #simulation_bluerov
+    image_sonar_ros_plugin
+  CATKIN_DEPENDS
+        gazebo_dev
+        gazebo_plugins
 #  DEPENDS system_lib
 )
 
@@ -117,9 +121,21 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-include ${catkin_INCLUDE_DIRS}
+include
+        ${catkin_INCLUDE_DIRS}
+        ${GAZEBO_INCLUDE_DIRS}
+        ${GAZEBO_MSG_INCLUDE_DIRS}
+        ${Boost_INCLUDE_DIR}
+        ${OpenCV_INCLUDE_DIRS}
+)
+link_directories(
+        ${GAZEBO_LIBRARY_DIRS}
 )
 
+add_library(image_sonar_ros_plugin src/gazebo_ros_image_sonar.cpp)
+target_link_libraries(image_sonar_ros_plugin ${OGRE_LIBRARIES} ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES})
+add_dependencies(image_sonar_ros_plugin ${catkin_EXPORTED_TARGETS})
+list(APPEND UUV_SENSOR_ROS_PLUGINS_LIST image_sonar_ros_plugin)
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/simulation_bluerov.cpp

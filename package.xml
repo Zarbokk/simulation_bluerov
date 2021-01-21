@@ -59,6 +59,8 @@
   <build_depend>roscpp_serialization</build_depend>
   <build_depend>rostime</build_depend>
   <build_depend>std_msgs</build_depend>
+  <depend>gazebo_dev</depend>
+  <depend>gazebo_plugins</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
