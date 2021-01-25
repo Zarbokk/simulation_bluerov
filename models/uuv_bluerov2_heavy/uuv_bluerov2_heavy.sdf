@@ -31,7 +31,7 @@
 
         </link>
 
-<!--sensors:-->
+<!--sensors: -->
         <link name="sonar_link">
           <pose>0 0 -0.5 0 0 0</pose>
           <inertial>
@@ -67,8 +67,8 @@
                       <horizontal>
                         <samples>720</samples>
                         <resolution>1</resolution>
-                        <min_angle>-1.570796</min_angle>
-                        <max_angle>1.570796</max_angle>
+                        <min_angle>-0.570796</min_angle>
+                        <max_angle>0.570796</max_angle>
                       </horizontal>
                     </scan>
                     <range>
@@ -78,10 +78,6 @@
                     </range>
                     <noise>
                       <type>gaussian</type>
-                      <!-- Noise parameters based on published spec for Hokuyo laser
-                           achieving "+-30mm" accuracy at range < 10m.  A mean of 0.0m and
-                           stddev of 0.01m will put 99.7% of samples within 0.03m of the true
-                           reading. -->
                       <mean>0.0</mean>
                       <stddev>0.01</stddev>
                     </noise>
@@ -98,8 +94,41 @@
             <child>sonar_link</child>
         </joint>
 
-
-
+<!--sensors: test of image sonar
+    <link name="sonar_link_2">
+          <sensor name="image_sonar" type="depth">
+            <camera>
+              <horizontal_fov>1.5</horizontal_fov>
+              <image>
+                <width>100</width>
+                <height>100</height>
+                <format>R8G8B8</format>
+              </image>
+              <clip>
+                <near>0.1</near>
+                <far>17</far>
+              </clip>
+              <save enabled="true">
+                <path>/tmp/camera</path>
+              </save>
+            </camera>
+            <plugin filename="libimage_sonar_ros_plugin.so" name="image_sonar_controller">
+              <topicName>test</topicName>
+              <frameName>forward_sonartest_optical_frame</frameName>
+                            <clip>
+                              <near>0.1</near>
+                              <far>17</far>
+                            </clip>
+            </plugin>
+            <always_on>true</always_on>
+            <update_rate>10</update_rate>
+          </sensor>
+    </link>
+        <joint name="sonar_joint_2" type="fixed">
+            <parent>base_link</parent>
+            <child>sonar_link_2</child>
+        </joint>
+-->
         <link name="thruster1">
             <pose>0.14 -0.10 0 0 1.570796 0.78539815</pose>
             <inertial>
