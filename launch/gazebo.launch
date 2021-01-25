@@ -5,7 +5,7 @@
     <!-- vehicle pose -->
     <arg name="x" default="0"/>
     <arg name="y" default="0"/>
-    <arg name="z" default="-2"/>
+    <arg name="z" default="-11"/>
     <arg name="R" default="0"/>
     <arg name="P" default="0"/>
     <arg name="Y" default="0"/>
@@ -51,4 +51,13 @@
         <arg name="fcu_url" value="$(arg fcu_url)"/>
         <arg name="respawn_mavros" value="$(arg respawn_mavros)"/>
     </include>
+    <!-- spawn custom models -->
+    <arg name="S01_model" default="$(find simulation_bluerov)/models/scenario_01/model.sdf"/>
+    <arg name="S01_name" default="Scenario_01"/>
+
+    <node name="spawning_S01" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg S01_model) -model $(arg S01_name) -x 0 -y 0 -z -15 -R 0 -P 0 -Y 0"/>
+
+
+
+
 </launch>

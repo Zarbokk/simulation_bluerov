@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- spawn custom models -->
+    <arg name="S01_model" default="$(find simulation_bluerov)/models/scenario_01/model.sdf"/>
+    <arg name="S01_name" default="Scenario_01"/>
+
+    <node name="spawning_S01" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg S01_model) -model $(arg S01_name)"/>
+
+</launch>
