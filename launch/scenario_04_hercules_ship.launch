@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- spawn custom models -->
+    <arg name="herkules_ship_wreck_model" default="$(find simulation_bluerov)/models/herkules_ship_wreck/model.sdf"/>
+    <arg name="herkules_ship_wreck_name" default="herkules_ship_wreck"/>
+
+    <node name="spawning_herkules_ship_wreck" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg herkules_ship_wreck_model) -model $(arg herkules_ship_wreck_name) -x 0 -y 0 -z -20 -R 0 -P 0 -Y 0"/>
+
+</launch>

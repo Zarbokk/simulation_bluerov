@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- spawn custom models -->
+    <arg name="sand_heightmap_model" default="$(find simulation_bluerov)/models/sand_heightmap/model.sdf"/>
+    <arg name="sand_heightmap_name" default="sand_heightmap"/>
+
+    <node name="spawning_sand_heightmap" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg sand_heightmap_model) -model $(arg sand_heightmap_name) -x 0 -y 0 -z -30 -R 0 -P 0 -Y 0"/>
+
+</launch>
