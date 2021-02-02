@@ -84,7 +84,7 @@
                   </ray>
                   <plugin name="gazebo_ros_head_hokuyo_controller" filename="libgazebo_ros_gpu_laser.so">
                     <topicName>/rrbot/laser/scan</topicName>
-                    <frameName>hokuyo_link</frameName>
+                    <frameName>ping_sonar_link_gt</frameName>
                   </plugin>
                 </sensor>
         </link>
@@ -96,8 +96,8 @@
 
 <!-- depth camera -->
           <link name="front_camera_link">
+            <pose>0.0 0.0 -0.2 0 0.4 0</pose>
             <inertial>
-              <pose>0.0 0.0 -0.5 0 0 0</pose>
               <mass>0.0001</mass>
               <inertia>
                 <ixx>4.15e-6</ixx>
@@ -108,41 +108,53 @@
                 <izz>2.407e-6</izz>
               </inertia>
             </inertial>
+            <visual name="visual">
+                <geometry>
+                  <box>
+                    <size>0.005 0.015 0.005</size>
+                  </box>
+                </geometry>
+                <material>
+                  <script>
+                    <name>Gazebo/Black</name>
+                  </script>
+                </material>
+            </visual>
             <sensor name="front_camera" type="depth">
-            <visualize>true</visualize>
-             <pose>0.0 0.0 0.0 0.0 0.5 0.0</pose>
-              <update_rate>10</update_rate>
-              <camera>
-                <horizontal_fov>1.518436</horizontal_fov>
-                <image>
-                  <format>L8</format>
-                    <width>424</width>
-                    <height>240</height>
-                </image>
-                <clip>
-                  <near>0.35</near>
-                  <far>15</far>
-                </clip>
-              </camera>
-              <plugin filename="libgazebo_ros_openni_kinect.so" name="camera_controller">
-                <pose>0.0 0.0 0.0 0.0 0.0 0.0 </pose>
-                <cameraName>camera_front</cameraName>
-                <alwaysOn>true</alwaysOn>
-                <updateRate>20</updateRate>
-                <pointCloudCutoff>0.2</pointCloudCutoff>
-                <pointCloudCutoffMax>50</pointCloudCutoffMax>
-                <imageTopicName>rgb/image_raw</imageTopicName>
-                <cameraInfoTopicName>rgb/camera_info</cameraInfoTopicName>
-                <depthImageTopicName>depth/image_raw</depthImageTopicName>
-                <depthImageCameraInfoTopicName>depth/camera_info</depthImageCameraInfoTopicName>
-                <pointCloudTopicName>depth/points</pointCloudTopicName>
-                <frameName>front_camera_link</frameName>
-                <distortion_k1>0.0</distortion_k1>
-                <distortion_k2>0.0</distortion_k2>
-                <distortion_k3>0.0</distortion_k3>
-                <distortion_t1>0.0</distortion_t1>
-                <distortion_t2>0.0</distortion_t2>
-              </plugin>
+                <visualize>true</visualize>
+                <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
+                <update_rate>10</update_rate>
+                <camera>
+                    <horizontal_fov>1.518436</horizontal_fov>
+                    <image>
+                        <format>L8</format>
+                        <width>424</width>
+                        <height>240</height>
+                    </image>
+                    <clip>
+                        <near>0.35</near>
+                        <far>50</far>
+                    </clip>
+                </camera>
+                <plugin filename="libgazebo_ros_openni_kinect.so" name="camera_controller">
+                    <pose>0.0 0.0 0.0 0.0 0.0 0.0 </pose>
+                    <cameraName>camera_front</cameraName>
+                    <alwaysOn>true</alwaysOn>
+                    <updateRate>20</updateRate>
+                    <pointCloudCutoff>0.2</pointCloudCutoff>
+                    <pointCloudCutoffMax>50</pointCloudCutoffMax>
+                    <imageTopicName>rgb/image_raw</imageTopicName>
+                    <cameraInfoTopicName>rgb/camera_info</cameraInfoTopicName>
+                    <depthImageTopicName>depth/image_raw</depthImageTopicName>
+                    <depthImageCameraInfoTopicName>depth/camera_info</depthImageCameraInfoTopicName>
+                    <pointCloudTopicName>depth/points</pointCloudTopicName>
+                    <frameName>front_camera_link_gt</frameName>
+                    <distortion_k1>0.0</distortion_k1>
+                    <distortion_k2>0.0</distortion_k2>
+                    <distortion_k3>0.0</distortion_k3>
+                    <distortion_t1>0.0</distortion_t1>
+                    <distortion_t2>0.0</distortion_t2>
+                </plugin>
             </sensor>
           </link>
 
@@ -150,7 +162,7 @@
               <child>front_camera_link</child>
               <parent>base_link</parent>
               <axis>
-                <xyz>0 0 0</xyz>
+                <xyz>0 0 1</xyz>
                 <limit>
                   <upper>0</upper>
                   <lower>0</lower>
@@ -158,51 +170,14 @@
               </axis>
             </joint>
 
-      <link name='gps_link'>
-        <pose>0 0 0 0 0 0</pose>
-        <inertial>
-          <pose>0 0 0 0 0 0</pose>
-          <mass>0.01</mass>
-          <inertia>
-            <ixx>2.1733e-06</ixx>
-            <ixy>0</ixy>
-            <ixz>0</ixz>
-            <iyy>2.1733e-06</iyy>
-            <iyz>0</iyz>
-            <izz>1.8e-07</izz>
-          </inertia>
-        </inertial>
-        <visual name='visual'>
-          <geometry>
-            <cylinder>
-              <radius>0.01</radius>
-              <length>0.002</length>
-            </cylinder>
-          </geometry>
-          <material>
-            <script>
-              <name>Gazebo/Black</name>
-              <uri>__default__</uri>
-            </script>
-          </material>
-        </visual>
-        <sensor name='gps' type='gps'>
-          <pose>0 0 0 0 0 0</pose>
-          <plugin name='gps_plugin' filename='libgazebo_gps_plugin.so'>
-            <robotNamespace/>
-            <gpsNoise>1</gpsNoise>
-            <gpsXYRandomWalk>2.0</gpsXYRandomWalk>
-            <gpsZRandomWalk>4.0</gpsZRandomWalk>
-            <gpsXYNoiseDensity>0.0002</gpsXYNoiseDensity>
-            <gpsZNoiseDensity>0.0004</gpsZNoiseDensity>
-            <gpsVXYNoiseDensity>0.2</gpsVXYNoiseDensity>
-            <gpsVZNoiseDensity>0.4</gpsVZNoiseDensity>
-          </plugin>
-        </sensor>
-      </link>
+    <include>
+      <uri>model://gps</uri>
+      <pose>0 0 0 0 0 0</pose>
+      <name>gps</name>
+    </include>
     <joint name='gps_joint' type='fixed'>
       <parent>base_link</parent>
-      <child>gps_link</child>
+      <child>gps::link</child>
     </joint>
 
 
@@ -772,7 +747,7 @@
             <hil_state_level>false</hil_state_level>
             <vehicle_is_tailsitter>false</vehicle_is_tailsitter>
             <send_vision_estimation>0</send_vision_estimation>
-            <send_odometry>1</send_odometry>
+            <send_odometry>0</send_odometry>
             <enable_lockstep>true</enable_lockstep>
             <use_tcp>true</use_tcp>
             <motorSpeedCommandPubTopic>/gazebo/command/motor_speed</motorSpeedCommandPubTopic>
