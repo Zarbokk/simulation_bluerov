@@ -26,10 +26,10 @@ def main():
 
             roll = 0.0/180.0*np.pi
             pitch = 0.0/180.0*np.pi
-            yaw = 90.0/180.0*np.pi
-            x_des = 1
-            y_des = 2
-            z_des = 3
+            yaw = 0.0/180.0*np.pi
+            x_des = 0
+            y_des = 0
+            z_des = 11
 
             qz_90n = Quaternion(axis=[0, 1, 0], angle=roll) * Quaternion(axis=[1, 0, 0], angle=pitch) * Quaternion(
                 axis=[0, 0, 1], angle=-(yaw - np.pi / 2))

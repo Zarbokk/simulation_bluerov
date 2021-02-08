@@ -3,6 +3,7 @@
     <!-- MAVROS posix SITL environment launch script -->
     <!-- launches MAVROS, PX4 SITL, Gazebo environment, and spawns vehicle -->
     <!-- vehicle pose -->
+    <param name="/use_sim_time" value="true" />
     <arg name="x" default="0"/>
     <arg name="y" default="0"/>
     <arg name="z" default="0"/>
@@ -52,7 +53,13 @@
         <arg name="respawn_mavros" value="$(arg respawn_mavros)"/>
     </include>
 
+    <!-- Start static tf_mapping -->
+    <node pkg="simulation_bluerov" type="static_tf.py" name="tf_static_mapping" output="screen" >
+    </node>
 
+    <!-- Start dynamic tf_mapping -->
+    <node pkg="simulation_bluerov" type="dynamic_tf.py" name="tf_dynamic_mapping" output="screen" >
+    </node>
 
 
 
