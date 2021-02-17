@@ -11,6 +11,7 @@ find_package(catkin REQUIRED roscpp rospy std_msgs genmsg gazebo_dev gazebo_plug
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV REQUIRED)
 find_package (gazebo REQUIRED)
+find_package(PCL 1.10 REQUIRED COMPONENTS common io visualization)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -225,7 +226,21 @@ list(APPEND UUV_SENSOR_ROS_PLUGINS_LIST image_sonar_ros_plugin)
 # catkin_add_nosetests(test)
 add_executable(talker src/talker.cpp)
 target_link_libraries(talker ${catkin_LIBRARIES})
+
 add_executable(listener src/listener.cpp)
 target_link_libraries(listener ${catkin_LIBRARIES})
+
 add_executable(pcl_sonar_transform src/point_cloud_publishing_sonar.cpp)
 target_link_libraries(pcl_sonar_transform ${catkin_LIBRARIES})
+
+add_executable(create_map src/create_map_with_gt.cpp)
+target_link_libraries(create_map ${catkin_LIBRARIES})
+
+add_executable(open_pcd src/open_pcd.cpp)
+target_link_libraries(open_pcd ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(example_keyframe_class src/try_class_key_point.cpp src/keyFrame.cpp)
+target_link_libraries(example_keyframe_class ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(example_registration_pcl src/example_registration.cpp src/scanRegistrationClass.cpp include/scanRegistrationClass.h src/keyFrame.cpp)
+target_link_libraries(example_registration_pcl ${PCL_LIBRARIES} ${catkin_LIBRARIES})

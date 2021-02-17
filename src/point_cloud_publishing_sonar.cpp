@@ -19,17 +19,18 @@ public:
 
     void callback(const sensor_msgs::LaserScan::ConstPtr& msg)
     {
-        printf("test: %f\n",msg->range_max);
         pcl::PointCloud<pcl::PointXYZ> myCloud;
         double angle_increment = msg->angle_increment;
         int i = 0;
         while (msg->angle_min+angle_increment*i <= msg->angle_max)
         {
-            pcl::PointXYZ newPoint;
-            newPoint.x = cos(msg->angle_min+angle_increment*i)*msg->ranges[i];
-            newPoint.y = sin(msg->angle_min+angle_increment*i)*msg->ranges[i];
-            newPoint.z = 0;
-            myCloud.points.push_back(newPoint);
+            if (std::isfinite(msg->ranges[i])){//check for infinity points
+                pcl::PointXYZ newPoint;
+                newPoint.x = cos(msg->angle_min+angle_increment*i)*msg->ranges[i];
+                newPoint.y = sin(msg->angle_min+angle_increment*i)*msg->ranges[i];
+                newPoint.z = 0;
+                myCloud.points.push_back(newPoint);
+            }
             i++;
         }
         sensor_msgs::PointCloud2 cloud_msg;

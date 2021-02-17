@@ -61,6 +61,10 @@
     <node pkg="simulation_bluerov" type="dynamic_tf.py" name="tf_dynamic_mapping" output="screen" >
     </node>
 
+    <!-- Start remapping of laserscan to PCL -->
+    <node pkg="simulation_bluerov" type="pcl_sonar_transform" name="pcl_sonar_transformation" output="screen" >
+    </node>
+
 
 
 </launch>
