@@ -16,29 +16,24 @@ class scanRegistrationClass {
 public:
     scanRegistrationClass()
     {
-        pcl::visualization::PCLVisualizer::Ptr tmp_viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-        viewer = tmp_viewer;
-        viewer->addCoordinateSystem (1.0);
-        viewer->initCameraParameters ();
 
-        viewer->setBackgroundColor (0, 0, 0);
     }
-    void visualizeLoadedClouds(bool forLoop = false);
-    void addCloudToViewer(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudToVisualize, const char *nameCloud,
-                          const int &r,const int &g ,const int &b);
-    void addCloudToViewer(pcl::PointCloud<pcl::PointXYZ> &cloudToVisualize, const char *nameCloud,
-                          const int &r,const int &g ,const int &b);
-    void removeCloudFromViewer(const char *nameCloud);
+    Eigen::Matrix4f generalizedIcpRegistrationSimple(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
+                                                     const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
+                                               double &fitnessScore);
 
-    Eigen::Matrix4f generalizedIcpRegistration(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
-                                    pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
-                                    pcl::PointCloud<pcl::PointXYZ>::Ptr &Final);
+    Eigen::Matrix4f generalizedIcpRegistration(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
+                                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
+                                    pcl::PointCloud<pcl::PointXYZ>::Ptr &Final,
+                                    double &fitnessScore);
 
-    Eigen::Matrix4f icpRegistration(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
-                         pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
+
+
+    Eigen::Matrix4f icpRegistration(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
+                                    const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
                          pcl::PointCloud<pcl::PointXYZ> &Final);
 private:
-    pcl::visualization::PCLVisualizer::Ptr viewer;
+
 
 };
 

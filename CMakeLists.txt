@@ -244,3 +244,6 @@ target_link_libraries(example_keyframe_class ${PCL_LIBRARIES} ${catkin_LIBRARIES
 
 add_executable(example_registration_pcl src/example_registration.cpp src/scanRegistrationClass.cpp include/scanRegistrationClass.h src/keyFrame.cpp)
 target_link_libraries(example_registration_pcl ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(graph_optimization_testing src/graphOptimizationTest.cpp)
+target_link_libraries(graph_optimization_testing ${catkin_LIBRARIES})

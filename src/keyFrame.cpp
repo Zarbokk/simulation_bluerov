@@ -9,7 +9,7 @@ const pcl::PointCloud<pcl::PointXYZ>::Ptr &keyFrame::getPointCloud() const {
 }
 
 void keyFrame::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
-    keyFrame::pointCloud = pointCloud;
+    *keyFrame::pointCloud = *pointCloud;
 }
 
 const Eigen::Vector3f &keyFrame::getEstimatedPos() const {
