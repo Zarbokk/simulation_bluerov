@@ -4,28 +4,65 @@
 
 #ifndef SIMULATION_BLUEROV_EDGE_H
 #define SIMULATION_BLUEROV_EDGE_H
+
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
 
 class edge {
 public:
-    edge(int fromVertex, int toVertex, const std::vector<float> &informationMeasurement, const std::vector<float> &measurementDifference, int dimension) {
-        edge::fromVertex = fromVertex;
-        edge::toVertex = toVertex;
-        edge::informationMeasurement = informationMeasurement;
-        edge::measurementDifference = measurementDifference;
-    }
-    edge(int fromVertex, int toVertex, const std::vector<float> &informationMeasurement, const std::vector<float> &measurementDifference, int dimension,pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
-        edge::fromVertex = fromVertex;
-        edge::toVertex = toVertex;
-        edge::informationMeasurement = informationMeasurement;
-        edge::measurementDifference = measurementDifference;
-        for (int i = 0; i < dimension; i++) {
-            edge::informationMeasurement[i] = informationMeasurement[i];
-            edge::measurementDifference[i] = measurementDifference[i];
+    edge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
+         const Eigen::Quaternionf &rotationDifference, const float covariancePosition, const float covarianceQuaternion,
+         int degreeOfFreedom) {
+        if (degreeOfFreedom == 3) {
+            edge::fromVertex = fromVertex;
+            edge::toVertex = toVertex;
+            edge::positionDifference = positionDifference;
+            edge::rotationDifference = rotationDifference;
+
+            edge::covariancePosition = covariancePosition;
+            edge::covarianceQuaternion = covarianceQuaternion;
+
+        } else {
+            std::cout << "not yet implemented DOF 6" << std::endl;
+            std::exit(-1);
         }
-        edge::pointCloud=pointCloud;
     }
+
+    edge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
+         const Eigen::Quaternionf &rotationDifference, const float covariancePosition, const float covarianceQuaternion,
+         int degreeOfFreedom,pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
+        if (degreeOfFreedom == 3) {
+            edge::fromVertex = fromVertex;
+            edge::toVertex = toVertex;
+            edge::positionDifference = positionDifference;
+            edge::rotationDifference = rotationDifference;
+
+            edge::covariancePosition = covariancePosition;
+            edge::covarianceQuaternion = covarianceQuaternion;
+
+        } else {
+            std::cout << "not yet implemented DOF 6" << std::endl;
+            std::exit(-1);
+        }
+        edge::pointCloud = pointCloud;
+    }
+
+
+    float getCovariancePosition() const;
+
+    void setCovariancePosition(float covariancePosition);
+
+    float getCovarianceQuaternion() const;
+
+    void setCovarianceQuaternion(float covarianceQuaternion);
+
+    const Eigen::Vector3f &getPositionDifference() const;
+
+    void setPositionDifference(const Eigen::Vector3f &positionDifference);
+
+    const Eigen::Quaternionf &getRotationDifference() const;
+
+    void setRotationDifference(const Eigen::Quaternionf &rotationDifference);
 
     int getFromVertex() const;
 
@@ -35,14 +72,6 @@ public:
 
     void setToVertex(int toVertex);
 
-    std::vector<float> getInformationMeasurement() const;
-
-    void setInformationMeasurement(std::vector<float> &informationMeasurement);
-
-    std::vector<float> getMeasurementDifference() const;
-
-    void setMeasurementDifference(std::vector<float> &measurementDifference);
-
     const pcl::PointCloud<pcl::PointXYZ>::Ptr &getPointCloud() const;
 
     void setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
@@ -51,8 +80,14 @@ public:
 private:
     int fromVertex;
     int toVertex;
-    std::vector<float> informationMeasurement;//estimated accuracy
-    std::vector<float> measurementDifference;//estimated difference between nodes "state-diff"
+    float covariancePosition;//estimated covarianze for this measurement in x y z
+    float covarianceQuaternion;//estimated covarianze for this measurement in q = w x y z (rotation)
+    //std::vector<float> measurementDifference;//estimated difference between nodes "state-diff"
+
+    Eigen::Vector3f positionDifference;
+    Eigen::Quaternionf rotationDifference;
+
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud;//measurement
 
 };

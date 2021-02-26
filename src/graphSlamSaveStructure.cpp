@@ -4,27 +4,34 @@
 
 #include "graphSlamSaveStructure.h"
 
-void graphSlamSaveStructure::addEdge(int fromVertex, int toVertex, std::vector<float> &informationMeasurement,
-                                     std::vector<float> &measurementDifference) {
-    edge edgeToAdd(fromVertex, toVertex, informationMeasurement, measurementDifference,
-                   graphSlamSaveStructure::stateDimension);
+void
+graphSlamSaveStructure::addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
+                                const Eigen::Quaternionf &rotationDifference, const float covariancePosition,
+                                const float covarianceQuaternion) {
+    edge edgeToAdd(fromVertex, toVertex, positionDifference, rotationDifference, covariancePosition,
+                   covarianceQuaternion,
+                   graphSlamSaveStructure::degreeOfFreedom);
     graphSlamSaveStructure::numberOfEdges += 1;
     graphSlamSaveStructure::edgeList.push_back(edgeToAdd);
 
 }
 
-void graphSlamSaveStructure::addEdge(int fromVertex, int toVertex, std::vector<float> &informationMeasurement,
-                                     std::vector<float> &measurementDifference, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
-    edge edgeToAdd(fromVertex, toVertex, informationMeasurement, measurementDifference,
-                   graphSlamSaveStructure::stateDimension,pointCloud);
+void
+graphSlamSaveStructure::addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
+                                const Eigen::Quaternionf &rotationDifference, const float covariancePosition,
+                                const float covarianceQuaternion, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
+    edge edgeToAdd(fromVertex, toVertex, positionDifference, rotationDifference, covariancePosition,
+                   covarianceQuaternion,
+                   graphSlamSaveStructure::degreeOfFreedom, pointCloud);
     graphSlamSaveStructure::numberOfEdges += 1;
     graphSlamSaveStructure::edgeList.push_back(edgeToAdd);
 
 }
 
-void graphSlamSaveStructure::addVertex(int vertexNumber, std::vector<float> &estimatedState) {
+void graphSlamSaveStructure::addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex,
+                                       Eigen::Quaternionf &rotationVertex) {
 
-    vertex vertexToAdd(vertexNumber, estimatedState, graphSlamSaveStructure::stateDimension);
+    vertex vertexToAdd(vertexNumber, positionVertex, rotationVertex, graphSlamSaveStructure::degreeOfFreedom);
     graphSlamSaveStructure::numberOfVertex += 1;
     graphSlamSaveStructure::vertexList.push_back(vertexToAdd);
 
@@ -32,84 +39,188 @@ void graphSlamSaveStructure::addVertex(int vertexNumber, std::vector<float> &est
 
 Eigen::MatrixXf graphSlamSaveStructure::getInformationMatrix() {
     Eigen::MatrixXf informationMatrix = Eigen::MatrixXf::Zero(
-            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::stateDimension + graphSlamSaveStructure::stateDimension,
-            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::stateDimension + graphSlamSaveStructure::stateDimension);
+            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::degreeOfFreedom +
+            graphSlamSaveStructure::degreeOfFreedom,
+            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::degreeOfFreedom +
+            graphSlamSaveStructure::degreeOfFreedom);
 
-    for (int j = 0; j < graphSlamSaveStructure::stateDimension; j++) {
+    for (int j = 0; j < graphSlamSaveStructure::degreeOfFreedom; j++) {
         informationMatrix(j, j) = 1;//first indece
     }
     for (int i = 1; i <= graphSlamSaveStructure::numberOfEdges; i++) {
-        for (int j = 0; j < graphSlamSaveStructure::stateDimension; j++) {
-            informationMatrix(i * graphSlamSaveStructure::stateDimension + j, i * graphSlamSaveStructure::stateDimension + j) = graphSlamSaveStructure::edgeList[i -
-                                                                                                                1].getInformationMeasurement()[j];
-        }
+        informationMatrix(i * graphSlamSaveStructure::degreeOfFreedom + 0,
+                          i * graphSlamSaveStructure::degreeOfFreedom + 0) =
+                1 / graphSlamSaveStructure::edgeList[i - 1].getCovariancePosition();
+
+        informationMatrix(i * graphSlamSaveStructure::degreeOfFreedom + 1,
+                          i * graphSlamSaveStructure::degreeOfFreedom + 1) =
+                1 / graphSlamSaveStructure::edgeList[i - 1].getCovariancePosition();
+
+        informationMatrix(i * graphSlamSaveStructure::degreeOfFreedom + 2,
+                          i * graphSlamSaveStructure::degreeOfFreedom + 2) =
+                1 / graphSlamSaveStructure::edgeList[i - 1].getCovarianceQuaternion();
     }
     return informationMatrix;
 }
 
-Eigen::MatrixXf graphSlamSaveStructure::getConectivityMatrix() {
-    Eigen::MatrixXf connectivityMatrix = Eigen::MatrixXf::Zero(
-            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::stateDimension + graphSlamSaveStructure::stateDimension,
-            graphSlamSaveStructure::numberOfVertex * graphSlamSaveStructure::stateDimension );
-    for (int i = 0; i < graphSlamSaveStructure::stateDimension ; i++) {
-        for (int j = 0; j < graphSlamSaveStructure::stateDimension ; j++) {
-            connectivityMatrix(i, i) = -1;
-        }
-    }
-
-//    connectivityMatrix <<   -1, 0, 0,
-//                            1, -1, 0,
-//                            0, 1, -1;
-    for (int i = 0; i < graphSlamSaveStructure::numberOfEdges; i++) {
-        for (int j = 0; j < graphSlamSaveStructure::stateDimension ; j++) {
-            connectivityMatrix(i * graphSlamSaveStructure::stateDimension  + graphSlamSaveStructure::stateDimension  + j,
-                               graphSlamSaveStructure::stateDimension  * graphSlamSaveStructure::edgeList[i].getFromVertex() + j) = 1;
-            connectivityMatrix(i * graphSlamSaveStructure::stateDimension  + graphSlamSaveStructure::stateDimension  + j,
-                               graphSlamSaveStructure::stateDimension  * graphSlamSaveStructure::edgeList[i].getToVertex() + j) = -1;
-        }
-    }
-//    std::cout << "connectivityMatrix" << std::endl;
-//    std::cout << connectivityMatrix << std::endl;
-    return connectivityMatrix;
-}
 
 Eigen::MatrixXf graphSlamSaveStructure::getJacobianMatrix() {
-    Eigen::MatrixXf jacobianMatrix = Eigen::MatrixXf::Zero(graphSlamSaveStructure::numberOfVertex, graphSlamSaveStructure::numberOfVertex);
-//    jacobianMatrix << -1, 0, 0,
-//                        1, -1, 0,
-//                        0, 1, -1;
-    jacobianMatrix = getConectivityMatrix();
-    return jacobianMatrix;
+    Eigen::MatrixXf jacobianMatrix = Eigen::MatrixXf::Zero(
+            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::degreeOfFreedom +
+            graphSlamSaveStructure::degreeOfFreedom,
+            graphSlamSaveStructure::numberOfVertex * graphSlamSaveStructure::degreeOfFreedom);
+
+    for (int i = 0; i < graphSlamSaveStructure::degreeOfFreedom; i++) {
+        jacobianMatrix(i, i) = 1;
+    }
+
+    for (int i = 0; i < graphSlamSaveStructure::numberOfEdges; i++) {
+
+        int fromVertex = graphSlamSaveStructure::edgeList[i].getFromVertex();
+        int toVertex = graphSlamSaveStructure::edgeList[i].getToVertex();
+        Eigen::Vector3f eulerAnglesRotation = graphSlamSaveStructure::vertexList[fromVertex].getRotationVertex().toRotationMatrix().eulerAngles(
+                0, 1, 2);
+        float alpha1 = eulerAnglesRotation[2];
+        float x1 = graphSlamSaveStructure::vertexList[fromVertex].getPositionVertex().x();
+        float y1 = graphSlamSaveStructure::vertexList[fromVertex].getPositionVertex().y();
+
+        float x2 = graphSlamSaveStructure::vertexList[toVertex].getPositionVertex().x();
+        float y2 = graphSlamSaveStructure::vertexList[toVertex].getPositionVertex().y();
+
+
+        //first row
+
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 0,
+                       fromVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = -cos(
+                alpha1);//first collumn of fromVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 0,
+                       fromVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = -sin(
+                alpha1);//second collumn of fromVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 0,
+                       fromVertex * graphSlamSaveStructure::degreeOfFreedom + 2) =
+                -sin(alpha1) * (x2 - x1) + cos(alpha1) * (y2 - y1);//third collumn of fromVertex
+
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 0,
+                       toVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = cos(alpha1);//first collumn of toVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 0,
+                       toVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = sin(
+                alpha1);//second collumn of toVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 0,
+                       toVertex * graphSlamSaveStructure::degreeOfFreedom + 2) = 0;//third collumn of toVertex
+
+
+        //second row
+
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 1,
+                       fromVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = sin(
+                alpha1);//first collumn of fromVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 1,
+                       fromVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = -cos(
+                alpha1);//second collumn of fromVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 1,
+                       fromVertex * graphSlamSaveStructure::degreeOfFreedom + 2) =
+                -cos(alpha1) * (x2 - x1) - sin(alpha1) * (y2 - y1);//third collumn of fromVertex
+
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 1,
+                       toVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = -sin(
+                alpha1);//first collumn of toVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 1,
+                       toVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = cos(
+                alpha1);//second collumn of toVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 1,
+                       toVertex * graphSlamSaveStructure::degreeOfFreedom + 2) = 0;//third collumn of toVertex
+
+
+        //third row
+
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 2,
+                       fromVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = 0;//first collumn of fromVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 2,
+                       fromVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = 0;//second collumn of fromVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 2,
+                       fromVertex * graphSlamSaveStructure::degreeOfFreedom + 2) = -1;//third collumn of fromVertex
+
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 2,
+                       toVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = 0;//first collumn of toVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 2,
+                       toVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = 0;//second collumn of toVertex
+        jacobianMatrix(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 2,
+                       toVertex * graphSlamSaveStructure::degreeOfFreedom + 2) = 1;//third collumn of toVertex
+
+    }
+
+    return -jacobianMatrix;
+}
+
+float angleDiff(float first,float second){//first-second
+    return atan2(sin(first-second), cos(first-second));
 }
 
 Eigen::MatrixXf graphSlamSaveStructure::getErrorMatrix() {
 
-    Eigen::MatrixXf stateTMP;
-    stateTMP.resize(graphSlamSaveStructure::numberOfVertex * graphSlamSaveStructure::stateDimension , 1);
-    for (int i = 0; i < graphSlamSaveStructure::numberOfVertex; i++) {
-        for (int j = 0; j < graphSlamSaveStructure::stateDimension ; j++) {
-            stateTMP(i * graphSlamSaveStructure::stateDimension  + j, 0) = graphSlamSaveStructure::vertexList[i].getStateVertex()[j];
-        }
-    }
-
+    //this is for DOF 3
     Eigen::MatrixXf error = Eigen::MatrixXf::Zero(
-            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::stateDimension  + graphSlamSaveStructure::stateDimension , 1);//add an additional size for x0
+            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::degreeOfFreedom +
+            graphSlamSaveStructure::degreeOfFreedom, 1);//add an additional size for x0
     for (int i = 0; i < graphSlamSaveStructure::numberOfEdges; i++) {
-        for (int j = 0; j < graphSlamSaveStructure::stateDimension ; j++) {
-            error(i * graphSlamSaveStructure::stateDimension  + j + graphSlamSaveStructure::stateDimension ,
-                  0) = graphSlamSaveStructure::edgeList[i].getMeasurementDifference()[j];
-        }
+
+        int fromVertex = graphSlamSaveStructure::edgeList[i].getFromVertex();
+        int toVertex = graphSlamSaveStructure::edgeList[i].getToVertex();
+
+        Eigen::Vector3f eulerAnglesRotation = graphSlamSaveStructure::vertexList[fromVertex].getRotationVertex().toRotationMatrix().eulerAngles(
+                0, 1, 2);
+        Eigen::AngleAxisf rotation_vector1(-eulerAnglesRotation(2), Eigen::Vector3f(0, 0, 1));
+        Eigen::Matrix2f currentRotation = rotation_vector1.matrix().block<2, 2>(0, 0);
+
+
+        Eigen::Vector2f differenceBeforeRotation =
+                graphSlamSaveStructure::vertexList[toVertex].getPositionVertex().block<2, 1>(0, 0) -
+                graphSlamSaveStructure::vertexList[fromVertex].getPositionVertex().block<2, 1>(0, 0);
+
+
+        error.block<2, 1>(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom, 0) =
+                graphSlamSaveStructure::edgeList[i].getPositionDifference().block<2, 1>(0, 0) -
+                currentRotation * differenceBeforeRotation;
+        //calculate angle difference
+
+        float angleDiffVertex = angleDiff(graphSlamSaveStructure::vertexList[toVertex].getRotationVertex().toRotationMatrix().eulerAngles(0, 1,2)[2] ,eulerAnglesRotation(2));
+
+        float angleErrorDiff = angleDiff(graphSlamSaveStructure::edgeList[i].getRotationDifference().toRotationMatrix().eulerAngles(0, 1, 2)[2] ,angleDiffVertex);
+
+        error(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 2,
+              0) =angleErrorDiff;
     }
-    error = error + getConectivityMatrix() * stateTMP;
     return error;
 }
 
 void graphSlamSaveStructure::printCurrentState() {
     std::cout << "current State:" << std::endl;
     for (int i = 0; i < graphSlamSaveStructure::numberOfVertex; i++) {
-        for (int j = 0; j < graphSlamSaveStructure::stateDimension; j++) {
-            std::cout << graphSlamSaveStructure::vertexList[i].getStateVertex()[j] << std::endl;
-        }
+        std::cout << "State:" << i << std::endl;
+        //std::cout << "Pos:" << std::endl;
+        //std::cout << graphSlamSaveStructure::vertexList[i].getPositionVertex() << std::endl;
+        std::cout << "Rot:" << std::endl;
+        std::cout <<
+                  graphSlamSaveStructure::vertexList[i].getRotationVertex().toRotationMatrix().eulerAngles(0, 1, 2)[2] *
+                  180 / M_PI << std::endl;
+    }
+}
+
+void graphSlamSaveStructure::addToState(std::vector<Eigen::Vector3f> &positionDifferenceVector,
+                                        std::vector<Eigen::Quaternionf> &rotationDifferenceVector) {
+
+
+    for (int i = 0; i < graphSlamSaveStructure::numberOfVertex; i++) {
+        Eigen::Vector3f currentStatePos = graphSlamSaveStructure::vertexList[i].getPositionVertex();
+        Eigen::Quaternionf currentStateRotation = graphSlamSaveStructure::vertexList[i].getRotationVertex();
+//        Eigen::Vector3f eulerAnglesRotation = graphSlamSaveStructure::vertexList[i].getRotationVertex().toRotationMatrix().eulerAngles(
+//                0, 1, 2);
+//        float alpha1 = eulerAnglesRotation[2];
+
+
+        graphSlamSaveStructure::vertexList[i].setPositionVertex(currentStatePos + positionDifferenceVector[i]);
+
+        graphSlamSaveStructure::vertexList[i].setRotationVertex(currentStateRotation * rotationDifferenceVector[i]);
     }
 }
 
@@ -117,10 +228,22 @@ void graphSlamSaveStructure::addToState(Eigen::MatrixXf &vectorToAdd) {
 
 
     for (int i = 0; i < graphSlamSaveStructure::numberOfVertex; i++) {
-        std::vector<float> currentState = graphSlamSaveStructure::vertexList[i].getStateVertex();
-        for (int j = 0; j < graphSlamSaveStructure::stateDimension; j++) {
-            currentState[j]+= (float) vectorToAdd(i * graphSlamSaveStructure::stateDimension + j, 0);
-        }
-        graphSlamSaveStructure::vertexList[i].setStateVertex(currentState);
+        float x = vectorToAdd(i * graphSlamSaveStructure::degreeOfFreedom + 0);
+        float y = vectorToAdd(i * graphSlamSaveStructure::degreeOfFreedom + 1);
+        float alpha = vectorToAdd(i * graphSlamSaveStructure::degreeOfFreedom + 2);
+
+        Eigen::Vector3f currentStatePos = graphSlamSaveStructure::vertexList[i].getPositionVertex();
+        Eigen::Quaternionf currentStateRotation = graphSlamSaveStructure::vertexList[i].getRotationVertex();
+
+
+        Eigen::Vector3f addedStatePos(x, y, 0);
+        Eigen::AngleAxisf rotation_vector1(alpha, Eigen::Vector3f(0, 0, 1));
+        Eigen::Quaternionf addedRotation(rotation_vector1);
+
+
+        graphSlamSaveStructure::vertexList[i].setPositionVertex(currentStatePos + addedStatePos);
+
+        graphSlamSaveStructure::vertexList[i].setRotationVertex(currentStateRotation * addedRotation);
     }
 }
+

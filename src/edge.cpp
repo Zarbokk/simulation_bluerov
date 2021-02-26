@@ -20,26 +20,42 @@ void edge::setToVertex(int toVertex) {
     edge::toVertex = toVertex;
 }
 
-std::vector<float> edge::getInformationMeasurement() const {
-    return edge::informationMeasurement;
-}
-
-void edge::setInformationMeasurement(std::vector<float> &informationMeasurement) {
-    edge::informationMeasurement = informationMeasurement;
-}
-
-std::vector<float> edge::getMeasurementDifference() const {
-    return edge::measurementDifference;
-}
-
-void edge::setMeasurementDifference(std::vector<float> &measurementDifference) {
-    edge::measurementDifference = measurementDifference;
-}
-
 const pcl::PointCloud<pcl::PointXYZ>::Ptr &edge::getPointCloud() const {
     return edge::pointCloud;
 }
 
 void edge::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
     edge::pointCloud = pointCloud;
+}
+
+float edge::getCovariancePosition() const {
+    return covariancePosition;
+}
+
+void edge::setCovariancePosition(float covariancePosition) {
+    edge::covariancePosition = covariancePosition;
+}
+
+float edge::getCovarianceQuaternion() const {
+    return covarianceQuaternion;
+}
+
+void edge::setCovarianceQuaternion(float covarianceQuaternion) {
+    edge::covarianceQuaternion = covarianceQuaternion;
+}
+
+const Eigen::Vector3f &edge::getPositionDifference() const {
+    return positionDifference;
+}
+
+void edge::setPositionDifference(const Eigen::Vector3f &positionDifference) {
+    edge::positionDifference = positionDifference;
+}
+
+const Eigen::Quaternionf &edge::getRotationDifference() const {
+    return rotationDifference;
+}
+
+void edge::setRotationDifference(const Eigen::Quaternionf &rotationDifference) {
+    edge::rotationDifference = rotationDifference;
 }

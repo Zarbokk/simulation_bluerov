@@ -5,11 +5,12 @@
 #include "nav_msgs/Path.h"
 #include "geometry_msgs/PoseStamped.h"
 #include <pcl_conversions/pcl_conversions.h>
-#include "keyFrame.h"
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <graphSlamSaveStructure.h>
 
-void visualizeKeyFrameList(std::vector<keyFrame> &keyframeList, ros::Publisher &publisherPath,
+
+void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &publisherPath,
                            ros::Publisher &publisherCloud, ros::Publisher &publisherMarkerArray) {
 
     nav_msgs::Path posOverTime;
@@ -79,7 +80,7 @@ void visualizeKeyFrameList(std::vector<keyFrame> &keyframeList, ros::Publisher &
 
 }
 
-void detectLoopClosure(std::vector<keyFrame> &keyframeList,scanRegistrationClass registrationClass) {
+void detectLoopClosure(graphSlamSaveStructure &graphSaved,scanRegistrationClass registrationClass) {
     Eigen::Vector3f estimatedPosLastPoint = keyframeList.back().getEstimatedPos();
     Eigen::Vector3f estimatedCovarianz = keyframeList.back().getEstimatedPos();
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloudLast = keyframeList.back().getPointCloud();
@@ -144,9 +145,9 @@ main(int argc, char **argv) {
     scanRegistrationClass registrationClass = scanRegistrationClass();
     Eigen::Matrix4f currentTransformation, completeTransformation;
     completeTransformation <<   1, 0, 0, 0,
-                                0, 1, 0, 0,
-                                0, 0, 1, 0,
-                                0, 0, 0, 1;
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1;
 
     //initialize first scan(for viewer only)
     sensor_msgs::PointCloud2 cloudMsg;
