@@ -29,11 +29,26 @@ graphSlamSaveStructure::addEdge(const int fromVertex, const int toVertex, const 
 }
 
 void graphSlamSaveStructure::addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex,
-                                       Eigen::Quaternionf &rotationVertex) {
+                                       Eigen::Quaternionf &rotationVertex,
+                                       float covariancePosition, float covarianceQuaternion) {
 
-    vertex vertexToAdd(vertexNumber, positionVertex, rotationVertex, graphSlamSaveStructure::degreeOfFreedom);
+    vertex vertexToAdd(vertexNumber, positionVertex, rotationVertex, graphSlamSaveStructure::degreeOfFreedom,
+                       covariancePosition, covarianceQuaternion);
     graphSlamSaveStructure::numberOfVertex += 1;
     graphSlamSaveStructure::vertexList.push_back(vertexToAdd);
+
+}
+
+void graphSlamSaveStructure::addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex,
+                                       Eigen::Quaternionf &rotationVertex,
+                                       float covariancePosition, float covarianceQuaternion,
+                                       pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
+
+    vertex vertexToAdd(vertexNumber, positionVertex, rotationVertex, graphSlamSaveStructure::degreeOfFreedom,
+                       pointCloud, covariancePosition, covarianceQuaternion);
+    graphSlamSaveStructure::numberOfVertex += 1;
+    graphSlamSaveStructure::vertexList.push_back(vertexToAdd);
+
 
 }
 
@@ -45,7 +60,7 @@ Eigen::MatrixXf graphSlamSaveStructure::getInformationMatrix() {
             graphSlamSaveStructure::degreeOfFreedom);
 
     for (int j = 0; j < graphSlamSaveStructure::degreeOfFreedom; j++) {
-        informationMatrix(j, j) = 1;//first indece
+        informationMatrix(j, j) = 1000000;//first indece
     }
     for (int i = 1; i <= graphSlamSaveStructure::numberOfEdges; i++) {
         informationMatrix(i * graphSlamSaveStructure::degreeOfFreedom + 0,
@@ -152,8 +167,8 @@ Eigen::MatrixXf graphSlamSaveStructure::getJacobianMatrix() {
     return -jacobianMatrix;
 }
 
-float angleDiff(float first,float second){//first-second
-    return atan2(sin(first-second), cos(first-second));
+float angleDiff(float first, float second) {//first-second
+    return atan2(sin(first - second), cos(first - second));
 }
 
 Eigen::MatrixXf graphSlamSaveStructure::getErrorMatrix() {
@@ -183,12 +198,17 @@ Eigen::MatrixXf graphSlamSaveStructure::getErrorMatrix() {
                 currentRotation * differenceBeforeRotation;
         //calculate angle difference
 
-        float angleDiffVertex = angleDiff(graphSlamSaveStructure::vertexList[toVertex].getRotationVertex().toRotationMatrix().eulerAngles(0, 1,2)[2] ,eulerAnglesRotation(2));
+        float angleDiffVertex = angleDiff(
+                graphSlamSaveStructure::vertexList[toVertex].getRotationVertex().toRotationMatrix().eulerAngles(0, 1,
+                                                                                                                2)[2],
+                eulerAnglesRotation(2));
 
-        float angleErrorDiff = angleDiff(graphSlamSaveStructure::edgeList[i].getRotationDifference().toRotationMatrix().eulerAngles(0, 1, 2)[2] ,angleDiffVertex);
+        float angleErrorDiff = angleDiff(
+                graphSlamSaveStructure::edgeList[i].getRotationDifference().toRotationMatrix().eulerAngles(0, 1, 2)[2],
+                angleDiffVertex);
 
         error(i * graphSlamSaveStructure::degreeOfFreedom + graphSlamSaveStructure::degreeOfFreedom + 2,
-              0) =angleErrorDiff;
+              0) = angleErrorDiff;
     }
     return error;
 }
@@ -204,6 +224,21 @@ void graphSlamSaveStructure::printCurrentState() {
                   graphSlamSaveStructure::vertexList[i].getRotationVertex().toRotationMatrix().eulerAngles(0, 1, 2)[2] *
                   180 / M_PI << std::endl;
     }
+}
+
+void graphSlamSaveStructure::printCurrentStateGeneralInformation() {
+    std::cout << "Number of Vertex:" << graphSlamSaveStructure::numberOfVertex << std::endl;
+    for (int i = 0; i < graphSlamSaveStructure::numberOfVertex; i++) {
+        std::cout << "Vertex Nr. " << i << " Covariance "<<graphSlamSaveStructure::vertexList[i].getCovariancePosition()<< std::endl;
+    }
+
+    std::cout << "Number of Edges:" << graphSlamSaveStructure::numberOfVertex << std::endl;
+    for (int i = 0; i < graphSlamSaveStructure::numberOfEdges; i++) {
+        std::cout << "Edge from " << graphSlamSaveStructure::edgeList[i].getFromVertex() << " to "
+                  << graphSlamSaveStructure::edgeList[i].getToVertex() << " covariance Position "
+                  << graphSlamSaveStructure::edgeList[i].getCovariancePosition() << std::endl;
+    }
+
 }
 
 void graphSlamSaveStructure::addToState(std::vector<Eigen::Vector3f> &positionDifferenceVector,
@@ -246,4 +281,58 @@ void graphSlamSaveStructure::addToState(Eigen::MatrixXf &vectorToAdd) {
         graphSlamSaveStructure::vertexList[i].setRotationVertex(currentStateRotation * addedRotation);
     }
 }
+
+vertex graphSlamSaveStructure::getVertexByIndex(const int i) {
+    if (i >= graphSlamSaveStructure::numberOfVertex) {
+        std::cout << "access to a vertex that doesnt exist" << std::endl;
+        std::exit(-1);
+    }
+    return graphSlamSaveStructure::vertexList[i];
+}
+
+std::vector<vertex> graphSlamSaveStructure::getVertexList() {
+    return graphSlamSaveStructure::vertexList;
+}
+
+void graphSlamSaveStructure::optimizeGraphWithSlam(){
+    Eigen::MatrixXf errorMatrix;
+    Eigen::MatrixXf informationMatrix;
+    Eigen::MatrixXf jacobianMatrix;
+    Eigen::MatrixXf bMatrix;
+    Eigen::MatrixXf hMatrix;
+    Eigen::MatrixXf vectorToAdd;
+    const float gainVector = 0.5;
+
+    for (int i = 0; i < 20; i++) {
+
+        informationMatrix = graphSlamSaveStructure::getInformationMatrix();
+        errorMatrix = graphSlamSaveStructure::getErrorMatrix();
+        jacobianMatrix = graphSlamSaveStructure::getJacobianMatrix();
+
+
+        bMatrix = (errorMatrix.transpose() * informationMatrix * jacobianMatrix).transpose();
+        hMatrix = jacobianMatrix.transpose() * informationMatrix * jacobianMatrix;
+        vectorToAdd = gainVector * hMatrix.colPivHouseholderQr().solve(-bMatrix);
+
+        graphSlamSaveStructure::addToState(vectorToAdd);
+        std::cout << "errorMatrix:" << std::endl;
+        std::cout << errorMatrix << std::endl;
+        std::cout << "informationMatrix:" << std::endl;
+        std::cout << informationMatrix << std::endl;
+        std::cout << "jacobianMatrix:" << std::endl;
+        std::cout << jacobianMatrix << std::endl;
+        std::cout << "bMatrix:" << std::endl;
+        std::cout << bMatrix << std::endl;
+        std::cout << "hMatrix:" << std::endl;
+        std::cout << hMatrix << std::endl;
+        std::cout << "Covariance Matrix:" << std::endl;
+        std::cout << hMatrix.diagonal().asDiagonal().toDenseMatrix().inverse().diagonal() << std::endl;
+        std::cout << "solve Hx=-b:" << std::endl;
+        std::cout << vectorToAdd << std::endl;
+        std::cout << "complete error: "<< errorMatrix.norm() << std::endl;
+    }
+}
+
+
+
 

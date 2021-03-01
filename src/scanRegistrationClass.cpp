@@ -25,9 +25,8 @@ Eigen::Matrix4f scanRegistrationClass::generalizedIcpRegistration(const pcl::Poi
 
 
     gicp.align(*Final,guess);
-    std::cout << "has converged:" << gicp.hasConverged() << " score: " <<
-              gicp.getFitnessScore() << std::endl;
-    //std::cout << gicp.getFinalTransformation() << std::endl;
+    //std::cout << "has converged:" << gicp.hasConverged() << " score: " <<
+    //          gicp.getFitnessScore() << std::endl;
     fitnessScore = gicp.getFitnessScore();
     return gicp.getFinalTransformation();
 }

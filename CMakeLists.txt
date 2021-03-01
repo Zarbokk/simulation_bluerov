@@ -248,5 +248,5 @@ target_link_libraries(example_registration_pcl ${PCL_LIBRARIES} ${catkin_LIBRARI
 add_executable(graph_optimization_testing src/graphOptimizationTest.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp)
 target_link_libraries(graph_optimization_testing ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(graph_slam_example src/firstCompleteSlamTest.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp)
-target_link_libraries(graph_slam_example ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+add_executable(firstCompleteSlamTest src/firstCompleteSlamTest.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp)
+target_link_libraries(firstCompleteSlamTest ${PCL_LIBRARIES} ${catkin_LIBRARIES})

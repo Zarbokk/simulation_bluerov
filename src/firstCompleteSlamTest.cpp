@@ -19,39 +19,39 @@ void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &p
     pcl::PointCloud<pcl::PointXYZ> completeCloudWithPos;
     visualization_msgs::MarkerArray markerArray;
     int i = 0;
-    for (const auto &keyFrameElement : keyframeList) {
+    std::vector<vertex> vertexList = graphSaved.getVertexList();
+    for (const auto &vertexElement : vertexList) {
 
         pcl::PointCloud<pcl::PointXYZ> currentScanTransformed;
-
-        completeTransformation << 1, 0, 0, keyFrameElement.getEstimatedPos().x(),
-                0, 1, 0, keyFrameElement.getEstimatedPos().y(),
-                0, 0, 1, keyFrameElement.getEstimatedPos().z(),
+        completeTransformation << 1, 0, 0, vertexElement.getPositionVertex().x(),
+                0, 1, 0, vertexElement.getPositionVertex().y(),
+                0, 0, 1, vertexElement.getPositionVertex().z(),
                 0, 0, 0, 1;//transformation missing currently
-        Eigen::Matrix3f m(keyFrameElement.getEstimatedRotation());
+        Eigen::Matrix3f m(vertexElement.getRotationVertex().toRotationMatrix());
         completeTransformation.block<3, 3>(0, 0) = m;
-        pcl::transformPointCloud(*keyFrameElement.getPointCloud(), currentScanTransformed, completeTransformation);
+        pcl::transformPointCloud(*vertexElement.getPointCloud(), currentScanTransformed, completeTransformation);
         completeCloudWithPos += currentScanTransformed;
 
 
         geometry_msgs::PoseStamped pos;
-        pos.pose.position.x = keyFrameElement.getEstimatedPos().x();
-        pos.pose.position.y = keyFrameElement.getEstimatedPos().y();
-        pos.pose.position.z = keyFrameElement.getEstimatedPos().z();
-        pos.pose.orientation.x = keyFrameElement.getEstimatedRotation().x();
-        pos.pose.orientation.y = keyFrameElement.getEstimatedRotation().y();
-        pos.pose.orientation.z = keyFrameElement.getEstimatedRotation().z();
-        pos.pose.orientation.w = keyFrameElement.getEstimatedRotation().w();
+        pos.pose.position.x = vertexElement.getPositionVertex().x();
+        pos.pose.position.y = vertexElement.getPositionVertex().y();
+        pos.pose.position.z = vertexElement.getPositionVertex().z();
+        pos.pose.orientation.x = vertexElement.getRotationVertex().x();
+        pos.pose.orientation.y = vertexElement.getRotationVertex().y();
+        pos.pose.orientation.z = vertexElement.getRotationVertex().z();
+        pos.pose.orientation.w = vertexElement.getRotationVertex().w();
 
         posOverTime.poses.push_back(pos);
 
         visualization_msgs::Marker currentMarker;
-        currentMarker.pose.position.x = keyFrameElement.getEstimatedPos().x();
-        currentMarker.pose.position.y = keyFrameElement.getEstimatedPos().y();
-        currentMarker.pose.position.z = keyFrameElement.getEstimatedPos().z();
+        currentMarker.pose.position.x = pos.pose.position.x;
+        currentMarker.pose.position.y = pos.pose.position.y;
+        currentMarker.pose.position.z = pos.pose.position.z;
         currentMarker.pose.orientation.w = 1;
         currentMarker.header.frame_id = "map_ned";
-        currentMarker.scale.x = 0.1 * keyFrameElement.getCovarianzPos().x();
-        currentMarker.scale.y = 0.1 * keyFrameElement.getCovarianzPos().y();
+        currentMarker.scale.x = 0.1;//missing covarianz since its in edge and only available after graph optimization
+        currentMarker.scale.y = 0.1;//missing covarianz since its in edge and only available after graph optimization
         currentMarker.scale.z = 0;
         currentMarker.color.r = 0;
         currentMarker.color.g = 1;
@@ -76,44 +76,54 @@ void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &p
     cloudMsg2.header.frame_id = "map_ned";
     publisherCloud.publish(cloudMsg2);
 
-    publisherMarkerArray.publish(markerArray);
+    //publisherMarkerArray.publish(markerArray);
 
 }
 
-void detectLoopClosure(graphSlamSaveStructure &graphSaved,scanRegistrationClass registrationClass) {
-    Eigen::Vector3f estimatedPosLastPoint = keyframeList.back().getEstimatedPos();
-    Eigen::Vector3f estimatedCovarianz = keyframeList.back().getEstimatedPos();
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloudLast = keyframeList.back().getPointCloud();
+void detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass registrationClass) {
+    Eigen::Vector3f estimatedPosLastPoint = graphSaved.getVertexList().back().getPositionVertex();
+    float estimatedCovarianz = graphSaved.getVertexList().back().getCovariancePosition();
+    std::cout << "estimated Covarianz:" << estimatedCovarianz <<std::endl;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloudLast = graphSaved.getVertexList().back().getPointCloud();
     Eigen::ArrayXXf dist;
-    dist.resize(keyframeList.size() - 1, 1);
-    for (int s = 0; s < keyframeList.size() - 1; s++) {
-        dist.row(s) = (keyframeList[s].getEstimatedPos() - estimatedPosLastPoint).norm();
+    dist.resize(graphSaved.getVertexList().size() - 1, 1);
+    for (int s = 0; s < graphSaved.getVertexList().size() - 1; s++) {
+        dist.row(s) = (graphSaved.getVertexList()[s].getPositionVertex() - estimatedPosLastPoint).norm();
     }
-    const int ignoreLastNLoopClosures = 4;
+    const int ignoreLastNLoopClosures = 1;
     std::vector<int> has2beChecked;
-    if (dist.size()>ignoreLastNLoopClosures) {
+    if (dist.size() > ignoreLastNLoopClosures) {
         for (int i = 0; i < dist.size() - ignoreLastNLoopClosures; i++) {
-            if ((dist(i,0) - 1 * estimatedCovarianz.norm())<0){
+            if ((dist(i, 0) - 1 * estimatedCovarianz) < 0) {
                 has2beChecked.push_back(i);
             }
         }
-        std::cout << "loop closure for:" << std::endl;
+        std::cout << "Test loop closure for :" <<has2beChecked.size() <<std::endl;
         for (const auto &has2beCheckedElemenet : has2beChecked) {
             double fitnessScore;
             Eigen::Matrix4f currentTransformation;
-            currentTransformation = registrationClass.generalizedIcpRegistrationSimple(keyframeList[has2beCheckedElemenet].getPointCloud(), keyframeList.back().getPointCloud(), fitnessScore);
+            currentTransformation = registrationClass.generalizedIcpRegistrationSimple(
+                    graphSaved.getVertexList()[has2beCheckedElemenet].getPointCloud(),
+                    graphSaved.getVertexList().back().getPointCloud(),
+                    fitnessScore);
 
-            if (fitnessScore<1){
+            if (fitnessScore < 1) {
                 std::cout << "fitnessScore" << std::endl;
                 std::cout << fitnessScore << std::endl;
                 std::cout << "has2beCheckedElemenet" << std::endl;
                 std::cout << has2beCheckedElemenet << std::endl;
-                std::cout << "dist.size()" << std::endl;
-                std::cout << dist.size() << std::endl;
+                Eigen::Vector3f currentPosDiff;
+                Eigen::Quaternionf currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
+                currentPosDiff.x() = currentTransformation.inverse()(0, 3);
+                currentPosDiff.y() = currentTransformation.inverse()(1, 3);
+                currentPosDiff.z() = 0;
+
+                graphSaved.addEdge(has2beCheckedElemenet, (int)graphSaved.getVertexList().size()-1, currentPosDiff, currentRotDiff, (float) fitnessScore, (float) fitnessScore);
+
             }
 
 
-            //keyframeList[has2beChecked[0]].getPointCloud()
+            //create an edge here
 
         }
     }
@@ -122,6 +132,8 @@ void detectLoopClosure(graphSlamSaveStructure &graphSaved,scanRegistrationClass 
 
 int
 main(int argc, char **argv) {
+    const int dimension = 3;
+
     ros::init(argc, argv, "exampleRegistration");
     ros::start();
     ros::NodeHandle n_;
@@ -135,7 +147,7 @@ main(int argc, char **argv) {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudFirstScan(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr lastScan(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr currentScan(new pcl::PointCloud<pcl::PointXYZ>);
-    int i = 16;
+    int i = 23;//was 16
     pcl::io::loadPCDFile("/home/tim/DataForTests/ScansOfLabyrinth/after_voxel_" + std::to_string(i - 1) + ".pcd",
                          *cloudFirstScan);
     *currentScan = *cloudFirstScan;
@@ -144,7 +156,7 @@ main(int argc, char **argv) {
     pcl::PointCloud<pcl::PointXYZ>::Ptr Final(new pcl::PointCloud<pcl::PointXYZ>);
     scanRegistrationClass registrationClass = scanRegistrationClass();
     Eigen::Matrix4f currentTransformation, completeTransformation;
-    completeTransformation <<   1, 0, 0, 0,
+    completeTransformation << 1, 0, 0, 0,
             0, 1, 0, 0,
             0, 0, 1, 0,
             0, 0, 0, 1;
@@ -155,58 +167,55 @@ main(int argc, char **argv) {
     cloudMsg.header.frame_id = "map_ned";
 
 
-    std::vector<keyFrame> keyframeList;
-    keyFrame currentFrame;
-    currentFrame.setPointCloud(cloudFirstScan);
-    Eigen::Vector3f currentEstPos, currentPosCov;
-    currentEstPos.x() = 0;
-    currentEstPos.y() = 0;
-    currentEstPos.z() = 0;
-    currentFrame.setEstimatedPos(currentEstPos);
+    graphSlamSaveStructure graphSaved(dimension);
 
-    currentPosCov.x() = 0;
-    currentPosCov.y() = 0;
-    currentPosCov.z() = 0;
-    currentFrame.setCovarianzPos(currentPosCov);
-    Eigen::Quaternionf tmpRotation(completeTransformation.inverse().block<3, 3>(0, 0));
-    currentFrame.setEstimatedRotation(tmpRotation);
+    Eigen::Vector3f firstPosition(0, 0, 0);
+    Eigen::AngleAxisf rotationVectorFirst(0.0f / 180.0f * 3.14159f, Eigen::Vector3f(0, 0, 1));
+    Eigen::Quaternionf firstRotation(rotationVectorFirst.toRotationMatrix());
 
-    keyframeList.push_back(currentFrame);
+
+    graphSaved.addVertex(0, firstPosition, firstRotation, 0, 0, currentScan);
+
+    float covariancePosition = 1.0f/1000000.0f;
+    float covarianceQuaternion = 1.0f/1000000.0f;
+    graphSaved.addEdge(0, 1, firstPosition, firstRotation, covariancePosition, covarianceQuaternion, currentScan);
+    graphSaved.addVertex(1, firstPosition, firstRotation, 0, 0, currentScan);
+
     double fitnessScore;
-    for (; i < 170; i = i + 1) {
-        keyFrame currentFrameForLoop;
+
+    for (int j = 2; i < 28; i = i + 1, j = j + 1) {//old i = 70
+
         *lastScan = *currentScan;
         pcl::io::loadPCDFile("/home/tim/DataForTests/ScansOfLabyrinth/after_voxel_" + std::to_string(i) + ".pcd",
                              *currentScan);
         currentTransformation = registrationClass.generalizedIcpRegistration(lastScan, currentScan, Final,
                                                                              fitnessScore);
+
         completeTransformation = completeTransformation * currentTransformation;
 
+        Eigen::Vector3f currentPosDiff;
+        Eigen::Quaternionf currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
 
-        geometry_msgs::PoseStamped pos;
-        Eigen::Quaternionf q(completeTransformation.inverse().block<3, 3>(0, 0));
 
-        currentEstPos.x() = completeTransformation.inverse()(0, 3);
-        currentEstPos.y() = completeTransformation.inverse()(1, 3);
-        currentEstPos.z() = 0;
-        currentFrameForLoop.setEstimatedPos(currentEstPos);
+        currentPosDiff.x() = currentTransformation.inverse()(0, 3);
+        currentPosDiff.y() = currentTransformation.inverse()(1, 3);
+        currentPosDiff.z() = 0;
+        Eigen::Quaternionf absolutRotation = currentRotDiff * graphSaved.getVertexByIndex(j - 1).getRotationVertex();
+        float lastCovariancePosOfVertex = graphSaved.getVertexList().back().getCovariancePosition();
+        float lastCovarianceRotOfVertex = graphSaved.getVertexList().back().getCovarianceQuaternion();
+        graphSaved.addVertex(j, graphSaved.getVertexByIndex(j - 1).getPositionVertex() + currentPosDiff,
+                             absolutRotation, (float) fitnessScore + lastCovariancePosOfVertex,
+                             (float) fitnessScore + lastCovarianceRotOfVertex, currentScan);
+        graphSaved.addEdge(j - 1, j, currentPosDiff, currentRotDiff, (float) fitnessScore, (float) fitnessScore,
+                           currentScan);
 
-        currentPosCov.x() = keyframeList[keyframeList.size() - 1].getCovarianzPos().x() + fitnessScore;
-        currentPosCov.y() = keyframeList[keyframeList.size() - 1].getCovarianzPos().y() + fitnessScore;
-        currentPosCov.z() = 0.0;
-        currentFrameForLoop.setCovarianzPos(currentPosCov);
 
-        currentFrameForLoop.setEstimatedRotation(q);
-        currentFrameForLoop.setPointCloud(currentScan);
-
-        keyframeList.push_back(currentFrameForLoop);
-
-        visualizeKeyFrameList(keyframeList, publisherPathOverTime, publisherKeyFrameClouds, publisherMarkerArray);
+        visualizeCurrentGraph(graphSaved, publisherPathOverTime, publisherKeyFrameClouds, publisherMarkerArray);
         publisherFirstScan.publish(cloudMsg);//publish first scan always
 
 
 
-        detectLoopClosure(keyframeList,registrationClass);//test loop closure
+        detectLoopClosure(graphSaved, registrationClass);//test loop closure
         std::cout << "###############################END OF LOOP###############################" << std::endl;
     }
 
@@ -215,7 +224,10 @@ main(int argc, char **argv) {
     std::cout << completeTransformation << std::endl;
     std::cout << "completeTransformation.inversed()" << std::endl;
     std::cout << completeTransformation.inverse() << std::endl;
+    graphSaved.printCurrentStateGeneralInformation();
 
+    graphSaved.optimizeGraphWithSlam();
+    graphSaved.printCurrentStateGeneralInformation();
 
     return (0);
 }

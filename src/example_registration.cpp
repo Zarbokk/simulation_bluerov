@@ -172,7 +172,7 @@ main(int argc, char **argv) {
 
     keyframeList.push_back(currentFrame);
     double fitnessScore;
-    for (; i < 170; i = i + 1) {
+    for (; i < 40; i = i + 1) {
         keyFrame currentFrameForLoop;
         *lastScan = *currentScan;
         pcl::io::loadPCDFile("/home/tim/DataForTests/ScansOfLabyrinth/after_voxel_" + std::to_string(i) + ".pcd",
@@ -205,7 +205,7 @@ main(int argc, char **argv) {
 
 
 
-        detectLoopClosure(keyframeList,registrationClass);//test loop closure
+        //detectLoopClosure(keyframeList,registrationClass);//test loop closure
         std::cout << "###############################END OF LOOP###############################" << std::endl;
     }
 

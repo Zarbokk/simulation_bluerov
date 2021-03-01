@@ -30,7 +30,12 @@ public:
                  const Eigen::Quaternionf &rotationDifference, const float covariancePosition,
                  const float covarianceQuaternion, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
 
-    void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex);
+    void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex,
+                   float covariancePosition, float covarianceQuaternion);
+
+    void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex,
+                   float covariancePosition, float covarianceQuaternion,
+                   pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
 
     Eigen::MatrixXf getInformationMatrix();
 
@@ -40,8 +45,17 @@ public:
 
     void printCurrentState();
 
-    void addToState(std::vector<Eigen::Vector3f> &positionDifferenceVector,std::vector<Eigen::Quaternionf> &rotationDifferenceVector);
+    void printCurrentStateGeneralInformation();
+
+    void addToState(std::vector<Eigen::Vector3f> &positionDifferenceVector,
+                    std::vector<Eigen::Quaternionf> &rotationDifferenceVector);
+
     void addToState(Eigen::MatrixXf &vectorToAdd);
+
+    vertex getVertexByIndex(int i);
+
+    std::vector<vertex> getVertexList();
+    void optimizeGraphWithSlam();
 
 private:
     int degreeOfFreedom;//3 for [x y alpha] or 6 for [x y z alpha beta gamma]

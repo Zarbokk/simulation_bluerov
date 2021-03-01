@@ -26,6 +26,8 @@ public:
             std::cout << "not yet implemented DOF 6" << std::endl;
             std::exit(-1);
         }
+        pcl::PointCloud<pcl::PointXYZ>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZ>);
+        edge::pointCloud = tmp;
     }
 
     edge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
@@ -44,7 +46,9 @@ public:
             std::cout << "not yet implemented DOF 6" << std::endl;
             std::exit(-1);
         }
-        edge::pointCloud = pointCloud;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZ>);
+        edge::pointCloud = tmp;
+        setPointCloud(pointCloud);
     }
 
 
@@ -83,7 +87,7 @@ private:
     float covariancePosition;//estimated covarianze for this measurement in x y z
     float covarianceQuaternion;//estimated covarianze for this measurement in q = w x y z (rotation)
     //std::vector<float> measurementDifference;//estimated difference between nodes "state-diff"
-
+    bool hasPointCloud;
     Eigen::Vector3f positionDifference;
     Eigen::Quaternionf rotationDifference;
 

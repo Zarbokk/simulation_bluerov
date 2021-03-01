@@ -25,7 +25,7 @@ const pcl::PointCloud<pcl::PointXYZ>::Ptr &edge::getPointCloud() const {
 }
 
 void edge::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
-    edge::pointCloud = pointCloud;
+    *edge::pointCloud = *pointCloud;
 }
 
 float edge::getCovariancePosition() const {
