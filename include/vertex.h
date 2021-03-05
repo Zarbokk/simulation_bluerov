@@ -12,7 +12,7 @@
 class vertex {
 public:
     vertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex,
-           int degreeOfFreedom, float covariancePosition, float covarianceQuaternion) {
+           int degreeOfFreedom, Eigen::Vector3f covariancePosition, float covarianceQuaternion) {
         vertex::vertexNumber = vertexNumber;
         vertex::positionVertex = positionVertex;
         vertex::rotationVertex = rotationVertex;
@@ -23,7 +23,7 @@ public:
     }
 
     vertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex,
-           int degreeOfFreedom, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud, float covariancePosition,
+           int degreeOfFreedom, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud, Eigen::Vector3f covariancePosition,
            float covarianceQuaternion) {
         vertex::vertexNumber = vertexNumber;
         vertex::positionVertex = positionVertex;
@@ -51,24 +51,19 @@ public:
 
     void setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
 
-private:
-    int vertexNumber;
-    Eigen::Vector3f positionVertex;// position w.r.t. Initiial Starting Position
-    Eigen::Quaternionf rotationVertex;// rotation w.r.t. Initial Starting Rotation
-    float covariancePosition;
-    float covarianceQuaternion;
-public:
-    float getCovariancePosition() const;
+    Eigen::Vector3f getCovariancePosition() const;
 
-    void setCovariancePosition(float covariancePosition);
+    void setCovariancePosition(Eigen::Vector3f covariancePosition);
 
     float getCovarianceQuaternion() const;
 
     void setCovarianceQuaternion(float covarianceQuaternion);
-
 private:
-
-
+    int vertexNumber;
+    Eigen::Vector3f positionVertex;// position w.r.t. Initiial Starting Position
+    Eigen::Quaternionf rotationVertex;// rotation w.r.t. Initial Starting Rotation
+    Eigen::Vector3f covariancePosition;
+    float covarianceQuaternion;
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud;//measurement by edge from this vertex to previous vertex
     //float *informationState; // potentionally useful for estimated accuracy
 };

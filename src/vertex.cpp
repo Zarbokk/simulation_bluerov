@@ -36,11 +36,11 @@ void vertex::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud
     *vertex::pointCloud = *pointCloud;
 }
 
-float vertex::getCovariancePosition() const {
+Eigen::Vector3f vertex::getCovariancePosition() const {
     return covariancePosition;
 }
 
-void vertex::setCovariancePosition(float covariancePosition) {
+void vertex::setCovariancePosition(Eigen::Vector3f covariancePosition) {
     vertex::covariancePosition = covariancePosition;
 }
 

@@ -3,6 +3,7 @@
 //
 #include "edge.h"
 #include "vertex.h"
+#include<Eigen/SparseCholesky>
 
 #ifndef SIMULATION_BLUEROV_GRAPHSLAMSAVESTRUCTURE_H
 #define SIMULATION_BLUEROV_GRAPHSLAMSAVESTRUCTURE_H
@@ -31,15 +32,15 @@ public:
                  const float covarianceQuaternion, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
 
     void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex,
-                   float covariancePosition, float covarianceQuaternion);
+                   Eigen::Vector3f covariancePosition, float covarianceQuaternion);
 
     void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex,
-                   float covariancePosition, float covarianceQuaternion,
+                   Eigen::Vector3f covariancePosition, float covarianceQuaternion,
                    pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
 
-    Eigen::MatrixXf getInformationMatrix();
+    Eigen::SparseMatrix<float> getInformationMatrix();
 
-    Eigen::MatrixXf getJacobianMatrix();
+    Eigen::SparseMatrix<float> getJacobianMatrix();
 
     Eigen::MatrixXf getErrorMatrix();
 

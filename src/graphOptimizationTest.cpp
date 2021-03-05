@@ -12,24 +12,25 @@ void createExampleVertex(graphSlamSaveStructure &graphSaved) {
     Eigen::AngleAxisf rotation_vector0(0.0f, Eigen::Vector3f(0, 0, 1));
     Eigen::Quaternionf rotationVertex0(rotation_vector0);
     float covariance0=0.0;
-    graphSaved.addVertex(0, positionVertex0, rotationVertex0,covariance0,covariance0);
+    Eigen::Vector3f covarianceVector(1,1,0);
+    graphSaved.addVertex(0, positionVertex0, rotationVertex0,covarianceVector*covariance0,covariance0);
 
     Eigen::Vector3f positionVertex1(1, 1, 0);
     Eigen::AngleAxisf rotation_vector1(-0.0f / 180.0f * 3.14159f, Eigen::Vector3f(0, 0, 1));
     Eigen::Quaternionf rotationVertex1(rotation_vector1.toRotationMatrix());
-    graphSaved.addVertex(1, positionVertex1, rotationVertex1,covariance0,covariance0);
+    graphSaved.addVertex(1, positionVertex1, rotationVertex1,covarianceVector*covariance0,covariance0);
 
     Eigen::Vector3f positionVertex2(0, 0, 0);
     Eigen::AngleAxisf rotation_vector2(-0.0f / 180.0f * 3.14159f, Eigen::Vector3f(0, 0, 1));
     Eigen::Quaternionf rotationVertex2(rotation_vector2.toRotationMatrix());
-    graphSaved.addVertex(2, positionVertex2, rotationVertex2,covariance0,covariance0);
+    graphSaved.addVertex(2, positionVertex2, rotationVertex2,covarianceVector*covariance0,covariance0);
 
     Eigen::Vector3f positionVertex3(0, 0, 0);
     Eigen::AngleAxisf rotation_vector3(0.0f / 180.0f * 3.14159f, Eigen::Vector3f(0, 0, 1));
     Eigen::Quaternionf rotationVertex3(rotation_vector3.toRotationMatrix());
-    graphSaved.addVertex(3, positionVertex3, rotationVertex3,covariance0,covariance0);
+    graphSaved.addVertex(3, positionVertex3, rotationVertex3,covarianceVector*covariance0,covariance0);
 
-    graphSaved.addVertex(4, positionVertex0, rotationVertex0,covariance0,covariance0);
+    graphSaved.addVertex(4, positionVertex0, rotationVertex0,covarianceVector*covariance0,covariance0);
 
 }
 
@@ -44,10 +45,10 @@ void createExampleEdge(graphSlamSaveStructure &graphSaved) {
     graphSaved.addEdge(0, 1, positionDifference0, rotationDifference0, covariancePosition0, covarianceQuaternion0);
 
     Eigen::Vector3f positionDifference1(4, 9, 0);
-    Eigen::AngleAxisf rotation_vector1(0.0f / 180.0f * 3.14159f, Eigen::Vector3f(0, 0, 1));
+    Eigen::AngleAxisf rotation_vector1(30.0f / 180.0f * 3.14159f, Eigen::Vector3f(0, 0, 1));
     Eigen::Quaternionf rotationDifference1(rotation_vector1.toRotationMatrix());
-    float covariancePosition1 = 30000;
-    float covarianceQuaternion1 = 30000;
+    float covariancePosition1 = 3;
+    float covarianceQuaternion1 = 3;
     graphSaved.addEdge(1, 2, positionDifference1, rotationDifference1, covariancePosition1, covarianceQuaternion1);
 
     Eigen::Vector3f positionDifference2(0, 12.4, 0);
@@ -62,7 +63,7 @@ void createExampleEdge(graphSlamSaveStructure &graphSaved) {
     Eigen::Quaternionf rotationDifference3(rotation_vector3.toRotationMatrix());
     float covariancePosition3 = 0.1;
     float covarianceQuaternion3 = 0.1;
-    //graphSaved.addEdge(3, 4, positionDifference3, rotationDifference3, covariancePosition3, covarianceQuaternion3);
+    graphSaved.addEdge(3, 4, positionDifference3, rotationDifference3, covariancePosition3, covarianceQuaternion3);
 
 
     Eigen::Vector3f positionDifference4(2, 12.4-9, 0);
@@ -70,7 +71,7 @@ void createExampleEdge(graphSlamSaveStructure &graphSaved) {
     Eigen::Quaternionf rotationDifference4(rotation_vector4.toRotationMatrix());
     float covariancePosition4 = 0.1;
     float covarianceQuaternion4 = 0.1;
-    //graphSaved.addEdge(2, 4, positionDifference4, rotationDifference4, covariancePosition4, covarianceQuaternion4);
+    graphSaved.addEdge(2, 4, positionDifference4, rotationDifference4, covariancePosition4, covarianceQuaternion4);
 
 }
 
@@ -87,6 +88,7 @@ main(int argc, char **argv) {
 
     graphSaved.optimizeGraphWithSlam();
     graphSaved.printCurrentStateGeneralInformation();
+    graphSaved.printCurrentState();
     return (0);
 }
 

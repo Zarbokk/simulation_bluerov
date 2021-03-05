@@ -8,35 +8,36 @@ import tf2_ros
 import tf2_geometry_msgs
 import rospkg
 import csv
+
 publisher_waypoint = rospy.Publisher('mavros/setpoint_position/local', geometry_msgs.msg.PoseStamped, queue_size=1)
 subscriber_position = rospy.Subscriber
 rate = None
-current_pos_number=0
+current_pos_number = 0
 
 
-def callback(msg: geometry_msgs.msg.PoseStamped ,args):
+def callback(msg: geometry_msgs.msg.PoseStamped, args):
     global current_pos_number
     buffer_tf2, x_des, y_des, z_des, yaw_des, N = args
 
-
-    transformation_enu_to_ned = buffer_tf2.lookup_transform(source_frame=msg.header.frame_id, target_frame="map_ned", time=rospy.Time())
+    transformation_enu_to_ned = buffer_tf2.lookup_transform(source_frame=msg.header.frame_id, target_frame="map_ned",
+                                                            time=rospy.Time())
 
     pose_ned = tf2_geometry_msgs.do_transform_pose(msg, transformation_enu_to_ned)
 
     if np.sqrt(
-            (pose_ned.pose.position.x - x_des[current_pos_number]) ** 2 + (pose_ned.pose.position.y - y_des[current_pos_number]) ** 2 + (pose_ned.pose.position.z - z_des[current_pos_number]) ** 2) < 0.3:  # define R
+            (pose_ned.pose.position.x - x_des[current_pos_number]) ** 2 + (
+                    pose_ned.pose.position.y - y_des[current_pos_number]) ** 2 + (
+                    pose_ned.pose.position.z - z_des[current_pos_number]) ** 2) < 0.4:  # define R
         current_pos_number = current_pos_number + 1
         if current_pos_number > N - 1:
             current_pos_number = 0
-    print("current_pos_number",current_pos_number)
-
+    print("current_pos_number", current_pos_number)
 
     send_waypoint = geometry_msgs.msg.PoseStamped()
     send_waypoint.header.stamp = rospy.Time.now()
 
-
-    roll = 0.0/180.0*np.pi
-    pitch = 0.0/180.0*np.pi
+    roll = 0.0 / 180.0 * np.pi
+    pitch = 0.0 / 180.0 * np.pi
     yaw = yaw_des[current_pos_number]
     x_des = x_des[current_pos_number]
     y_des = y_des[current_pos_number]
@@ -59,7 +60,7 @@ def callback(msg: geometry_msgs.msg.PoseStamped ,args):
 def main():
     rospy.init_node('drive_scenario_01')
     rospack = rospkg.RosPack()
-    data_path = rospack.get_path("simulation_bluerov")+'/config/where_to_move_list.csv'
+    data_path = rospack.get_path("simulation_bluerov") + '/config/where_to_move_list.csv'
     try:
         with open(data_path, 'r') as f:
             reader = csv.reader(f, delimiter=',')
@@ -69,11 +70,28 @@ def main():
             data = list(reader)
             # transform data into numpy array
             data = np.array(data).astype(float)
-            x_des=data[:,0]
-            y_des=data[:,1]
-            z_des=data[:,2]
-            yaw_des = data[:,3]
+            nWaypointsBetween = 10
+            dataAugmented = np.zeros(((data.shape[0]-1)*nWaypointsBetween,4))
+            for i in range(data.shape[0]-1):
+                dataX=np.linspace(data[i,0],data[i+1,0],nWaypointsBetween)
+                dataY=np.linspace(data[i,1],data[i+1,1],nWaypointsBetween)
+                dataZ=np.linspace(data[i,2],data[i+1,2],nWaypointsBetween)
+                datayaw=np.linspace(data[i,3],data[i+1,3],nWaypointsBetween)
+                dataAugmented[i*nWaypointsBetween:i*nWaypointsBetween+(nWaypointsBetween),0]=dataX
+                dataAugmented[i*nWaypointsBetween:i*nWaypointsBetween+(nWaypointsBetween),1]=dataY
+                dataAugmented[i*nWaypointsBetween:i*nWaypointsBetween+(nWaypointsBetween),2]=dataZ
+                dataAugmented[i*nWaypointsBetween:i*nWaypointsBetween+(nWaypointsBetween),3]=datayaw
+            dataAugmented = np.array(dataAugmented).astype(float)
+
+
+            data = dataAugmented
+
+            x_des = data[:, 0]
+            y_des = data[:, 1]
+            z_des = data[:, 2]
+            yaw_des = data[:, 3]
             yaw_des = yaw_des / 180 * np.pi
+
             N = data.shape[0]
             print(yaw_des)
 
@@ -83,7 +101,8 @@ def main():
 
     buffer_tf2 = tf2_ros.Buffer()
     transform_listener = tf2_ros.TransformListener(buffer_tf2)
-    rospy.Subscriber('/mavros/local_position/pose', geometry_msgs.msg.PoseStamped, callback,(buffer_tf2,x_des,y_des,z_des,yaw_des,N))
+    rospy.Subscriber('/mavros/local_position/pose', geometry_msgs.msg.PoseStamped, callback,
+                     (buffer_tf2, x_des, y_des, z_des, yaw_des, N))
 
     rospy.spin()
 

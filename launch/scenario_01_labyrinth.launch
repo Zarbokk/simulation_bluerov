@@ -4,6 +4,6 @@
     <arg name="S01_model" default="$(find simulation_bluerov)/models/labyrinth/model.sdf"/>
     <arg name="S01_name" default="labyrinth"/>
 
-    <node name="labyrinth" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg S01_model) -model $(arg S01_name) -x 0 -y 0 -z -15 -R 0 -P 0 -Y 0"/>
+    <node name="labyrinth" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg S01_model) -model $(arg S01_name) -x 0 -y 0 -z -45 -R 0 -P 0 -Y 0"/>
 
 </launch>

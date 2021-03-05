@@ -68,7 +68,7 @@ public:
 
         pcl::io::savePCDFileASCII ("/home/tim/DataForTests/ScansOfLabyrinth/after_voxel_"+std::to_string(current_number_save)+".pcd", *myCloud);
         current_number_save++;
-
+        std::cout << "saving number: "<< current_number_save << std::endl;
 
         pcl::transformPointCloud(*myCloud,*myCloud,shift,quat_rot);
 
@@ -85,7 +85,7 @@ public:
 //        int d = (*current_map).size();
 
 
-        *current_map+= *myCloud;
+        //*current_map+= *myCloud;
 //        printf("current size Map after adding: %d \n",(*current_map).size());
         //printf("x4:%f \n",transform.getOrigin().x());
 //        printf("current size Map: %d \n",(*current_map).size());
@@ -117,7 +117,7 @@ public:
         //cloudvoxel_save->is_dense = true;
 //        printf("print dense save%d\n",cloudvoxel_save->is_dense);
 //        printf("print dense input%d\n",cloudvoxel_input->is_dense);
-        downsample(current_map,cloudvoxel_output);
+        //downsample(current_map,cloudvoxel_output);
 //        printf("cloudvoxel_output number points(with cloudvoxel_save) %d \n",(*cloudvoxel_output).size());
 //        int tmp_d = (*cloudvoxel_output).size();
 
