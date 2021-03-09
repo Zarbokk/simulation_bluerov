@@ -64,6 +64,9 @@
     <!-- Start remapping of laserscan to PCL -->
     <node pkg="simulation_bluerov" type="pcl_sonar_transform" name="pcl_sonar_transformation" output="screen" >
     </node>
+    <!-- Start from rotating sonar to full sonar -->
+    <node pkg="sonar_sensor_gazebo" type="pcl_sonar_grab_full_scan" name="pcl_sonar_grab_full_scan" output="screen" >
+    </node>
 
 
 

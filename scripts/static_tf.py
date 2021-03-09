@@ -100,7 +100,27 @@ def static_transform_blfrdt_2_psl_gt():
 
     return static_transformStamped
 
+def static_transform_blf_2_rots():
+    static_transformStamped = geometry_msgs.msg.TransformStamped()
 
+    static_transformStamped.header.stamp = rospy.Time.now()
+    static_transformStamped.header.frame_id = "base_link_frd_gt"
+    static_transformStamped.child_frame_id = "rotating_sonar_top"
+
+
+    static_transformStamped.transform.translation.x = 0
+    static_transformStamped.transform.translation.y = 0
+    static_transformStamped.transform.translation.z = -(0.2+0.029335+0.095455)
+
+    quat2 = tf_conversions.transformations.quaternion_from_euler(math.pi, 0, 0.0)
+
+
+    static_transformStamped.transform.rotation.x = quat2[0]
+    static_transformStamped.transform.rotation.y = quat2[1]
+    static_transformStamped.transform.rotation.z = quat2[2]
+    static_transformStamped.transform.rotation.w = quat2[3]
+
+    return static_transformStamped
 
 
 if __name__ == '__main__':
@@ -114,7 +134,8 @@ if __name__ == '__main__':
     transform_2 = static_transform_blf_2_fcl_gt()
     transform_3 = static_transform_bl_2_blfrd_gt(buffer_tf2)
     transform_4 = static_transform_blfrdt_2_psl_gt()
+    transform_5 = static_transform_blf_2_rots()
 
-    broadcaster.sendTransform([transform_1,transform_2,transform_3,transform_4])
+    broadcaster.sendTransform([transform_1,transform_2,transform_3,transform_4,transform_5])
 
     rospy.spin()

@@ -17,7 +17,14 @@
                 <emissive>0 0 0 1</emissive>
             </material>
         </visual>
-
+        <collision name="collisionModel">
+                                      <geometry>
+                                          <mesh>
+                                              <scale>1 1 1</scale>
+                                              <uri>model://labyrinth/meshes/labyrinth.dae</uri>
+                                          </mesh>
+                                      </geometry>
+                        </collision>
 
     </link>
   </model>

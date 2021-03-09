@@ -33,7 +33,7 @@
 
 <!--sensors: -->
         <link name="sonar_link">
-          <pose>0 0 0.2 0 0 0</pose>
+          <pose>0 0 0.17 0 0 0</pose>
           <inertial>
             <pose>0 0 0 0 0 0</pose>
             <mass>0.000000000000001</mass>
@@ -92,6 +92,16 @@
         <joint name="sonar_joint" type="fixed">
             <parent>base_link</parent>
             <child>sonar_link</child>
+        </joint>
+<!-- rotating sonar -->
+        <include>
+          <uri>model://rotatingSonar</uri>
+          <pose>0 0 0.2 0 0 0</pose>
+          <name>rotatingSonar</name>
+        </include>
+        <joint name='rotating_sonar_joint' type='fixed'>
+              <child>rotatingSonar::rotating_sonar_base</child>
+              <parent>base_link</parent>
         </joint>
 
 <!-- depth camera -->
@@ -180,42 +190,6 @@
       <child>gps::link</child>
     </joint>
 
-
-<!--sensors: test of image sonar
-    <link name="sonar_link_2">
-          <sensor name="image_sonar" type="depth">
-            <camera>
-              <horizontal_fov>1.5</horizontal_fov>
-              <image>
-                <width>100</width>
-                <height>100</height>
-                <format>R8G8B8</format>
-              </image>
-              <clip>
-                <near>0.1</near>
-                <far>17</far>
-              </clip>
-              <save enabled="true">
-                <path>/tmp/camera</path>
-              </save>
-            </camera>
-            <plugin filename="libimage_sonar_ros_plugin.so" name="image_sonar_controller">
-              <topicName>test</topicName>
-              <frameName>forward_sonartest_optical_frame</frameName>
-                            <clip>
-                              <near>0.1</near>
-                              <far>17</far>
-                            </clip>
-            </plugin>
-            <always_on>true</always_on>
-            <update_rate>10</update_rate>
-          </sensor>
-    </link>
-        <joint name="sonar_joint_2" type="fixed">
-            <parent>base_link</parent>
-            <child>sonar_link_2</child>
-        </joint>
--->
         <link name="thruster1">
             <pose>0.14 -0.10 0 0 1.570796 0.78539815</pose>
             <inertial>
@@ -700,9 +674,9 @@
         <plugin name="magnetometer_plugin" filename="libgazebo_magnetometer_plugin.so">
             <robotNamespace />
             <pubRate>100</pubRate>
-            <noiseDensity>0.0004</noiseDensity>
-            <randomWalk>6.4e-06</randomWalk>
-            <biasCorrelationTime>600</biasCorrelationTime>
+            <noiseDensity>0.000004</noiseDensity>
+            <randomWalk>6.4e-010</randomWalk>
+            <biasCorrelationTime>6</biasCorrelationTime>
             <magTopic>/mag</magTopic>
         </plugin>
 
