@@ -11,7 +11,7 @@
 class edge {
 public:
     edge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-         const Eigen::Quaternionf &rotationDifference, const float covariancePosition, const float covarianceQuaternion,
+         const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition, const float covarianceQuaternion,
          int degreeOfFreedom) {
         if (degreeOfFreedom == 3) {
             edge::fromVertex = fromVertex;
@@ -31,7 +31,7 @@ public:
     }
 
     edge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-         const Eigen::Quaternionf &rotationDifference, const float covariancePosition, const float covarianceQuaternion,
+         const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition, const float covarianceQuaternion,
          int degreeOfFreedom,pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
         if (degreeOfFreedom == 3) {
             edge::fromVertex = fromVertex;
@@ -51,10 +51,11 @@ public:
         setPointCloud(pointCloud);
     }
 
+    void setEdge(edge &edgeToCopy);
 
-    float getCovariancePosition() const;
+    Eigen::Vector3f getCovariancePosition() const;
 
-    void setCovariancePosition(float covariancePosition);
+    void setCovariancePosition(Eigen::Vector3f covariancePosition);
 
     float getCovarianceQuaternion() const;
 
@@ -84,16 +85,19 @@ public:
 private:
     int fromVertex;
     int toVertex;
-    float covariancePosition;//estimated covarianze for this measurement in x y z
+    Eigen::Vector3f covariancePosition;//estimated covarianze for this measurement in x y z
     float covarianceQuaternion;//estimated covarianze for this measurement in q = w x y z (rotation)
-    //std::vector<float> measurementDifference;//estimated difference between nodes "state-diff"
     bool hasPointCloud;
+public:
+    bool getHasPointCloud() const;
+
+    void setHasPointCloud(bool hasPointCloud);
+
+private:
     Eigen::Vector3f positionDifference;
     Eigen::Quaternionf rotationDifference;
-
-
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud;//measurement
-
+    int typeOfEdge;// 0=pointCloud    %%%%%%%%%   1 = integratedPosDiff
 };
 
 

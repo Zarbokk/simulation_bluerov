@@ -28,11 +28,23 @@ void edge::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) 
     *edge::pointCloud = *pointCloud;
 }
 
-float edge::getCovariancePosition() const {
+Eigen::Vector3f edge::getCovariancePosition() const {
     return covariancePosition;
 }
 
-void edge::setCovariancePosition(float covariancePosition) {
+void edge::setEdge(edge &edgeToCopy){
+    this->fromVertex = edgeToCopy.getFromVertex();
+    this->toVertex = edgeToCopy.getToVertex();
+    this->covariancePosition = edgeToCopy.getCovariancePosition();
+    this->covarianceQuaternion = edgeToCopy.getCovarianceQuaternion();
+    this->hasPointCloud = edgeToCopy.getHasPointCloud();
+    this->positionDifference = edgeToCopy.getPositionDifference();
+    this->rotationDifference = edgeToCopy.getRotationDifference();
+    this->pointCloud = edgeToCopy.getPointCloud();
+
+}
+
+void edge::setCovariancePosition(Eigen::Vector3f covariancePosition) {
     edge::covariancePosition = covariancePosition;
 }
 
@@ -58,4 +70,12 @@ const Eigen::Quaternionf &edge::getRotationDifference() const {
 
 void edge::setRotationDifference(const Eigen::Quaternionf &rotationDifference) {
     edge::rotationDifference = rotationDifference;
+}
+
+bool edge::getHasPointCloud() const {
+    return hasPointCloud;
+}
+
+void edge::setHasPointCloud(bool hasPointCloud) {
+    edge::hasPointCloud = hasPointCloud;
 }

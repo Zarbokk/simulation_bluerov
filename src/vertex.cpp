@@ -51,3 +51,4 @@ float vertex::getCovarianceQuaternion() const {
 void vertex::setCovarianceQuaternion(float covarianceQuaternion) {
     vertex::covarianceQuaternion = covarianceQuaternion;
 }
+

@@ -9,16 +9,16 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/common/transforms.h>
-class PCL_2_Marker
+class dataGenerationClass
 {
 public:
-    PCL_2_Marker(const std::string& publishName, const std::string& subscribeName)
+    dataGenerationClass(const std::string& publishName, const std::string& subscribeName)
     {
         //Topic you want to publish "cloud_topic";
         demoPublisher_ = n_.advertise<sensor_msgs::PointCloud2> (publishName,10);
         demoPublisher2_ = n_.advertise<sensor_msgs::PointCloud2>("debug_pc",10);
         //Topic you want to subscribe
-        sub_ = n_.subscribe(subscribeName, 1000, &PCL_2_Marker::callback,this);
+        sub_ = n_.subscribe(subscribeName, 1000, &dataGenerationClass::callback, this);
         pcl::PointCloud<pcl::PointXYZ>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZ>);
         current_map = tmp;
     }
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "pmap_marker_publisher");
     ros::start();
 
-    PCL_2_Marker tmp = PCL_2_Marker("marker/map","test");
+    dataGenerationClass tmp = dataGenerationClass("marker/map", "test");
 
 
     ros::spin();

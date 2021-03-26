@@ -10,9 +10,10 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 class vertex {
+
 public:
-    vertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex,
-           int degreeOfFreedom, Eigen::Vector3f covariancePosition, float covarianceQuaternion) {
+    vertex(int vertexNumber, const Eigen::Vector3f &positionVertex, const Eigen::Quaternionf &rotationVertex,
+           int degreeOfFreedom, const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion) {
         vertex::vertexNumber = vertexNumber;
         vertex::positionVertex = positionVertex;
         vertex::rotationVertex = rotationVertex;
@@ -22,9 +23,10 @@ public:
         vertex::covarianceQuaternion = covarianceQuaternion;
     }
 
-    vertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex,
-           int degreeOfFreedom, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud, Eigen::Vector3f covariancePosition,
-           float covarianceQuaternion) {
+    vertex(int vertexNumber, const Eigen::Vector3f &positionVertex, const Eigen::Quaternionf &rotationVertex,
+           int degreeOfFreedom, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,
+           const Eigen::Vector3f &covariancePosition,
+           const float covarianceQuaternion) {
         vertex::vertexNumber = vertexNumber;
         vertex::positionVertex = positionVertex;
         vertex::rotationVertex = rotationVertex;
@@ -58,6 +60,7 @@ public:
     float getCovarianceQuaternion() const;
 
     void setCovarianceQuaternion(float covarianceQuaternion);
+
 private:
     int vertexNumber;
     Eigen::Vector3f positionVertex;// position w.r.t. Initiial Starting Position
@@ -65,7 +68,7 @@ private:
     Eigen::Vector3f covariancePosition;
     float covarianceQuaternion;
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud;//measurement by edge from this vertex to previous vertex
-    //float *informationState; // potentionally useful for estimated accuracy
+    int typeOfVertex;// 0=pointCloud    %%%%%%%%%   1 = integratedPosDiff
 };
 
 

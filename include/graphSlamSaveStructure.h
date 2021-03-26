@@ -16,7 +16,7 @@ public:
             graphSlamSaveStructure::degreeOfFreedom = degreeOfFreedom;
             graphSlamSaveStructure::numberOfEdges = 0;
             graphSlamSaveStructure::numberOfVertex = 0;
-
+            hasHierachicalGraph = false;
         } else {
             std::cout << "not yet implemented DOF 6" << std::endl;
             std::exit(-1);
@@ -24,18 +24,18 @@ public:
     }
 
     void addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-                 const Eigen::Quaternionf &rotationDifference, const float covariancePosition,
+                 const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
                  const float covarianceQuaternion);
 
     void addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-                 const Eigen::Quaternionf &rotationDifference, const float covariancePosition,
+                 const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
                  const float covarianceQuaternion, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
 
-    void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex,
-                   Eigen::Vector3f covariancePosition, float covarianceQuaternion);
+    void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, const Eigen::Quaternionf &rotationVertex,
+                   const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion);
 
-    void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, Eigen::Quaternionf &rotationVertex,
-                   Eigen::Vector3f covariancePosition, float covarianceQuaternion,
+    void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, const Eigen::Quaternionf &rotationVertex,
+                   const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion,
                    pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
 
     Eigen::SparseMatrix<float> getInformationMatrix();
@@ -48,22 +48,59 @@ public:
 
     void printCurrentStateGeneralInformation();
 
-    void addToState(std::vector<Eigen::Vector3f> &positionDifferenceVector,
-                    std::vector<Eigen::Quaternionf> &rotationDifferenceVector);
+    void addToEveryState(std::vector<Eigen::Vector3f> &positionDifferenceVector,
+                         std::vector<Eigen::Quaternionf> &rotationDifferenceVector);
 
-    void addToState(Eigen::MatrixXf &vectorToAdd);
+    void addToState(Eigen::MatrixXf &vectorToAdd);//from optimization
 
     vertex getVertexByIndex(int i);
 
     std::vector<vertex> getVertexList();
-    void optimizeGraphWithSlam();
 
+    void optimizeGraphWithSlam(bool verbose, std::vector<int> &holdStill);
+
+    void optimizeGraphWithSlamTopDown(bool verbose);
+
+    void initiallizeSubGraphs(std::deque<float> cellSizes);//cell sizes in order (first 1m cecond 4 m and so on)
+
+    void createHierachicalGraph(float cellSizeDes);
+
+    edge getEdgeBetweenNodes(int fromVertex, int toVertex, std::vector<int> &holdStill);
+
+    Eigen::MatrixXf transformStateDiffToAddVector(std::vector<vertex> &stateBeforeOptimization,
+                                                  std::vector<vertex> &stateAfterOptimization) const;
+
+    graphSlamSaveStructure getSubGraph();
+
+    bool createSubGraphBetweenCell(int vertexIndexFrom, int vertexIndexTo, graphSlamSaveStructure &currentSubGraph);
+
+    static const int POINT_CLOUD_USAGE = 0;
+    static const int INTEGRATED_POS_USAGE = 1;
 private:
+
+    void removeRowColumn(Eigen::SparseMatrix<float> &matrix, int rowToRemove) const;
+
+    void lookupTableCreation(float minDistanceForNewCell);
+
+    void
+    getListofConnectedVertexAndEdges(std::vector<int> &vertexIndicesofICell, std::vector<edge> &listOfContainingEdges,
+                                     std::vector<int> &listOfConnectedVertexes);
+
+    int getCellOfVertexIndex(int vertexIndex);
+
+    static bool checkIfElementsOfVectorAreEqual(std::vector<int> &i0, std::vector<int> &i1);
+
+    static std::vector<int> joinTwoLists(std::vector<int> &i0, std::vector<int> &i1);
+
     int degreeOfFreedom;//3 for [x y alpha] or 6 for [x y z alpha beta gamma]
     int numberOfEdges;
     int numberOfVertex;
     std::vector<edge> edgeList;
     std::vector<vertex> vertexList;
+    bool hasHierachicalGraph;
+    float cellSize;
+    std::vector<std::vector<int>> lookUpTableCell;// [i][j] i = cell j=vertex (cell of sub graph and vertex of graph)
+    graphSlamSaveStructure *hierachicalGraph;
 };
 
 

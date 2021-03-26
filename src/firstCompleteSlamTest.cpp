@@ -9,6 +9,11 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <graphSlamSaveStructure.h>
 
+#include <random>
+
+double scalingAngle = 0.05;
+double scalingAllg = 0.25;
+double sigmaScaling = 3;
 
 void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &publisherPath,
                            ros::Publisher &publisherCloud, ros::Publisher &publisherMarkerArray) {
@@ -50,8 +55,12 @@ void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &p
         currentMarker.pose.position.z = pos.pose.position.z;
         currentMarker.pose.orientation.w = 1;
         currentMarker.header.frame_id = "map_ned";
-        currentMarker.scale.x = vertexElement.getCovariancePosition()[0];//missing covarianz since its in edge and only available after graph optimization
-        currentMarker.scale.y = vertexElement.getCovariancePosition()[1];//missing covarianz since its in edge and only available after graph optimization
+        currentMarker.scale.x = sigmaScaling *
+                                2 *
+                                vertexElement.getCovariancePosition()[0];//missing covarianz since its in edge and only available after graph optimization
+        currentMarker.scale.y = sigmaScaling *
+                                2 *
+                                vertexElement.getCovariancePosition()[1];//missing covarianz since its in edge and only available after graph optimization
         currentMarker.scale.z = 0;
         currentMarker.color.r = 0;
         currentMarker.color.g = 1;
@@ -65,9 +74,7 @@ void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &p
 
         markerArray.markers.push_back(currentMarker);
 
-
     }
-
 
     publisherPath.publish(posOverTime);
 
@@ -86,17 +93,27 @@ bool detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass
     Eigen::ArrayXXf dist;
     dist.resize(graphSaved.getVertexList().size() - 1, 1);
     for (int s = 0; s < graphSaved.getVertexList().size() - 1; s++) {
-        dist.row(s) = (graphSaved.getVertexList()[s].getPositionVertex() - estimatedPosLastPoint).norm();
+        //dist.row(s) = (graphSaved.getVertexList()[s].getPositionVertex() - estimatedPosLastPoint).norm();
+        dist.row(s) = pow((estimatedPosLastPoint.x() - graphSaved.getVertexList()[s].getPositionVertex().x()), 2) /
+                      pow((sigmaScaling * graphSaved.getVertexList()[s].getCovariancePosition().x()), 2) +
+                      pow((estimatedPosLastPoint.y() - graphSaved.getVertexList()[s].getPositionVertex().y()), 2) /
+                      pow((sigmaScaling * graphSaved.getVertexList()[s].getCovariancePosition().y()), 2);
     }
     const int ignoreLastNLoopClosures = 2;
     std::vector<int> has2beChecked;
     if (dist.size() > ignoreLastNLoopClosures) {
         for (int i = 0; i < dist.size() - ignoreLastNLoopClosures; i++) {
-            if ((dist(i, 0) - 3 * graphSaved.getVertexList()[i].getCovariancePosition().norm()) < 0) {
+            if (dist(i, 0) < 1) {
                 has2beChecked.push_back(i);
             }
         }
+
         std::cout << "Test loop closure for :" << has2beChecked.size() << std::endl;
+        std::shuffle(has2beChecked.begin(), has2beChecked.end(), std::mt19937(std::random_device()()));
+//        while(has2beChecked.size()>3){
+//            has2beChecked.pop_back();//just check max 3
+//        }
+        int loopclosureNumber = 0;
         bool foundLoopClosure = false;
         for (const auto &has2beCheckedElemenet : has2beChecked) {
             double fitnessScore;
@@ -105,19 +122,24 @@ bool detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass
                     graphSaved.getVertexList()[has2beCheckedElemenet].getPointCloud(),
                     graphSaved.getVertexList().back().getPointCloud(),
                     fitnessScore);
-
+            fitnessScore = scalingAllg * sqrt(fitnessScore);
             if (fitnessScore < 0.1) {
                 std::cout << "Found Loop Closure with fitnessScore: " << fitnessScore << std::endl;
+                if (fitnessScore < 0.01) {
+                    std::cout << "FitnessScore Very Low: " << fitnessScore << std::endl;
+                    fitnessScore = 0.01;
+                }
                 Eigen::Vector3f currentPosDiff;
                 Eigen::Quaternionf currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
                 currentPosDiff.x() = currentTransformation.inverse()(0, 3);
                 currentPosDiff.y() = currentTransformation.inverse()(1, 3);
                 currentPosDiff.z() = 0;
-
+                Eigen::Vector3f positionCovariance(fitnessScore, fitnessScore, 0);
                 graphSaved.addEdge(has2beCheckedElemenet, (int) graphSaved.getVertexList().size() - 1, currentPosDiff,
-                                   currentRotDiff, (float) fitnessScore, (float) fitnessScore);
+                                   currentRotDiff, positionCovariance, (float) (0.1 * fitnessScore));
                 foundLoopClosure = true;
-
+                loopclosureNumber++;
+                if (loopclosureNumber > 1) { break; }// break if multiple loop closures are found
             }
         }
         if (foundLoopClosure) {
@@ -175,61 +197,82 @@ main(int argc, char **argv) {
     graphSaved.addVertex(0, firstPosition, firstRotation, covariancePos, 0,
                          currentScan);//the first vertex sets 0 of the coordinate system
 
+    std::deque<float> subgraphs{1, 3};
+    graphSaved.initiallizeSubGraphs(subgraphs);
 
     double fitnessScore;
 
-    for (int j = 1; i < 8500; i = i + 1) {//old i = 70
+    for (; i < 8500; i++) {//old i = 70
 
         *lastScan = *currentScan;
         pcl::io::loadPCDFile("/home/tim/DataForTests/ScansOfLabyrinth/after_voxel_" + std::to_string(i) + ".pcd",
                              *currentScan);
         currentTransformation = registrationClass.generalizedIcpRegistration(lastScan, currentScan, Final,
                                                                              fitnessScore);
-        fitnessScore = 0.25*sqrt(fitnessScore);//0.05f;//constant fitness score test
-        completeTransformation = completeTransformation * currentTransformation;
-        if (completeTransformation.block<3, 1>(0, 3).norm() > 0.2) {
+
+        fitnessScore = scalingAllg * sqrt(fitnessScore);//0.05f;//constant fitness score test
+        //completeTransformation = completeTransformation * currentTransformation;
+        //if (completeTransformation.block<3, 1>(0, 3).norm() > 0.1) {
+        if (fitnessScore < 0.01) {
+            std::cout << "FitnessScore Very Low: " << fitnessScore << std::endl;
+            fitnessScore = 0.01;
+        }
+
+        Eigen::Vector3f currentPosDiff;
+        Eigen::Quaternionf currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
 
 
-            Eigen::Vector3f currentPosDiff;
-            Eigen::Quaternionf currentRotDiff(completeTransformation.inverse().block<3, 3>(0, 0));
+        currentPosDiff.x() = currentTransformation.inverse()(0, 3);
+        currentPosDiff.y() = currentTransformation.inverse()(1, 3);
+        currentPosDiff.z() = 0;
+        Eigen::Quaternionf absolutRotation =
+                currentRotDiff * graphSaved.getVertexByIndex(i - 1).getRotationVertex();
+
+        //Eigen::Vector3f lastCovariancePosOfVertex = graphSaved.getVertexList().back().getCovariancePosition();
+        graphSaved.addVertex(i, graphSaved.getVertexByIndex(i - 1).getPositionVertex() + currentPosDiff,
+                             absolutRotation, Eigen::Vector3f(0, 0, 0), 0, currentScan);
+        Eigen::Vector3f positionCovariance(fitnessScore, fitnessScore, 0);
+        graphSaved.addEdge(i - 1, i, currentPosDiff, currentRotDiff, positionCovariance,
+                           (float) (scalingAngle * fitnessScore),
+                           currentScan);
 
 
-            currentPosDiff.x() = completeTransformation.inverse()(0, 3);
-            currentPosDiff.y() = completeTransformation.inverse()(1, 3);
-            currentPosDiff.z() = 0;
-            Eigen::Quaternionf absolutRotation =
-                    currentRotDiff * graphSaved.getVertexByIndex(j - 1).getRotationVertex();
-
-            Eigen::Vector3f lastCovariancePosOfVertex = graphSaved.getVertexList().back().getCovariancePosition();
-            graphSaved.addVertex(j, graphSaved.getVertexByIndex(j - 1).getPositionVertex() + currentPosDiff,
-                                 absolutRotation, Eigen::Vector3f(1, 1, 0) * 0.5, 0.5, currentScan);
-            graphSaved.addEdge(j - 1, j, currentPosDiff, currentRotDiff, (float) fitnessScore,
-                               (float) (0.01 * fitnessScore),
-                               currentScan);
-
-
-            visualizeCurrentGraph(graphSaved, publisherPathOverTime, publisherKeyFrameClouds, publisherMarkerArray);
-            publisherFirstScan.publish(cloudMsg);//publish first scan always
-
-
-
-            bool detectedLoop = detectLoopClosure(graphSaved, registrationClass);//test loop closure
-            if (detectedLoop) {
-                graphSaved.optimizeGraphWithSlam();
-            }
-            completeTransformation << 1, 0, 0, 0,
-                    0, 1, 0, 0,
-                    0, 0, 1, 0,
-                    0, 0, 0, 1;
-            j = j + 1;
+        bool detectedLoop = detectLoopClosure(graphSaved, registrationClass);//test loop closure
+        if (detectedLoop) {
+            std::cout << "loop detected" << std::endl;
         }
         std::cout << "###############################END OF LOOP############################### " << i + 1
                   << " comes next" << std::endl;
+
+
+//        if (i % 100 == 0) {
+//            std::vector<int> holdStill{0};
+//            graphSaved.optimizeGraphWithSlam(false,holdStill);
+//            graphSaved.initiallizeSubGraphs(subgraphs);
+//            visualizeCurrentGraph(graphSaved, publisherPathOverTime, publisherKeyFrameClouds, publisherMarkerArray);
+//        }
+
+
+        graphSaved.optimizeGraphWithSlamTopDown(false);
+        //std::vector<vertex> stateAfterOptimization = hierachicalGraph.getVertexList();
+        //Eigen::MatrixXf vectorToAdd = graphSaved.transformStateDiffToAddVector(stateBeforeOptimization,
+        //                                                                       stateAfterOptimization, lookUpTable);
+        graphSlamSaveStructure subGraph2 = graphSaved.getSubGraph().getSubGraph();
+        visualizeCurrentGraph(subGraph2, publisherPathOverTime, publisherKeyFrameClouds, publisherMarkerArray);
+
+        graphSlamSaveStructure subGraph = graphSaved.getSubGraph();
+        visualizeCurrentGraph(subGraph, publisherPathOverTime, publisherKeyFrameClouds, publisherMarkerArray);
+
+
+        //}
+        //graphSaved.optimizeGraphWithSlam(false);
+        visualizeCurrentGraph(graphSaved, publisherPathOverTime, publisherKeyFrameClouds, publisherMarkerArray);
+        publisherFirstScan.publish(cloudMsg);//publish first scan always
     }
 
     graphSaved.printCurrentStateGeneralInformation();
-
-    graphSaved.optimizeGraphWithSlam();
+    std::vector<int> holdStill{0};
+    graphSaved.optimizeGraphWithSlam(false,holdStill);
     graphSaved.printCurrentStateGeneralInformation();
 
     return (0);

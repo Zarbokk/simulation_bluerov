@@ -7,69 +7,424 @@
 
 void
 graphSlamSaveStructure::addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-                                const Eigen::Quaternionf &rotationDifference, const float covariancePosition,
+                                const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
                                 const float covarianceQuaternion) {
+    if (std::isnan(covarianceQuaternion) ||
+        std::isnan(covariancePosition[0]) ||
+        std::isnan(covariancePosition[1])) {
+        std::cout << "IS NAN: " << std::endl;
+    }
     edge edgeToAdd(fromVertex, toVertex, positionDifference, rotationDifference, covariancePosition,
                    covarianceQuaternion,
-                   graphSlamSaveStructure::degreeOfFreedom);
-    graphSlamSaveStructure::numberOfEdges += 1;
-    graphSlamSaveStructure::edgeList.push_back(edgeToAdd);
+                   this->degreeOfFreedom);
+    this->numberOfEdges += 1;
+    this->edgeList.push_back(edgeToAdd);
 
+    // look from where to where the edge is going then calculate subgraph for lower number of edge new
+
+    if (this->hasHierachicalGraph) {
+        //get cell from
+        int indexCellFrom = graphSlamSaveStructure::getCellOfVertexIndex(this->edgeList.back().getFromVertex());
+        int indexCellTo = graphSlamSaveStructure::getCellOfVertexIndex(this->edgeList.back().getToVertex());
+
+        if (indexCellFrom == indexCellTo) {//calculate every connection new(subgraph)
+            std::vector<edge> listOfContainingEdges;
+            std::vector<int> listOfConnectedVertexes;
+            getListofConnectedVertexAndEdges(this->lookUpTableCell[indexCellFrom], listOfContainingEdges,
+                                             listOfConnectedVertexes);
+            for (int i = 0; i < this->lookUpTableCell.size(); i++) {
+                if (i != indexCellFrom) {
+
+                    bool containingConnection = checkIfElementsOfVectorAreEqual(this->lookUpTableCell[i],
+                                                                                listOfConnectedVertexes);//check if overlap exists
+                    if (containingConnection) {//create graph from indexCellFrom to i
+                        graphSlamSaveStructure currentSubGraph(this->hierachicalGraph->degreeOfFreedom);
+                        for (int k = 0;
+                             k < this->lookUpTableCell[indexCellFrom].size(); k++) {//add vertices of cell indexCellFrom
+                            vertex tmpVertex = this->vertexList[this->lookUpTableCell[indexCellFrom][k]];
+                            currentSubGraph.addVertex(k, tmpVertex.getPositionVertex(), tmpVertex.getRotationVertex(),
+                                                      tmpVertex.getCovariancePosition(),
+                                                      tmpVertex.getCovarianceQuaternion());
+                        }
+
+                        for (int k = 0; k < this->lookUpTableCell[i].size(); k++) {//add vertices of cell i
+                            vertex tmpVertex = this->vertexList[this->lookUpTableCell[i][k]];
+                            currentSubGraph.addVertex(k + (int) this->lookUpTableCell[indexCellFrom].size(),
+                                                      tmpVertex.getPositionVertex(),
+                                                      tmpVertex.getRotationVertex(),
+                                                      tmpVertex.getCovariancePosition(),
+                                                      tmpVertex.getCovarianceQuaternion());
+                        }
+
+                        std::vector<int> vertexIndexOfJoinedGraph = joinTwoLists(this->lookUpTableCell[indexCellFrom],
+                                                                                 this->lookUpTableCell[i]);//list of vertex index of cell indexCellFrom and cell i
+                        for (auto &currentEdge : this->edgeList) {//go threw complete edge lists
+
+                            auto itFromVertex = std::find(vertexIndexOfJoinedGraph.begin(),
+                                                          vertexIndexOfJoinedGraph.end(),
+                                                          currentEdge.getFromVertex());
+                            auto itToVertex = std::find(vertexIndexOfJoinedGraph.begin(),
+                                                        vertexIndexOfJoinedGraph.end(),
+                                                        currentEdge.getToVertex());
+
+                            if (itFromVertex != vertexIndexOfJoinedGraph.end() &&
+                                itToVertex !=
+                                vertexIndexOfJoinedGraph.end()) {// check if edge is contained in joined graph
+                                int indexToVertex = std::distance(vertexIndexOfJoinedGraph.begin(), itToVertex);
+                                int indexFromVertex = std::distance(vertexIndexOfJoinedGraph.begin(), itFromVertex);
+                                currentSubGraph.addEdge(indexFromVertex, indexToVertex,
+                                                        currentEdge.getPositionDifference(),
+                                                        currentEdge.getRotationDifference(),
+                                                        currentEdge.getCovariancePosition(),
+                                                        currentEdge.getCovarianceQuaternion());
+                            }
+                        }
+                        std::vector<int> holdStill{0};
+                        edge resultingEdge = currentSubGraph.getEdgeBetweenNodes(0,
+                                                                                 this->lookUpTableCell[i].size(),
+                                                                                 holdStill);
+
+                        for (int j = 0; j < hierachicalGraph->edgeList.size(); j++) {
+                            if (hierachicalGraph->edgeList[j].getFromVertex() == indexCellFrom &&
+                                hierachicalGraph->edgeList[j].getToVertex() == i ||
+                                hierachicalGraph->edgeList[j].getFromVertex() == i &&
+                                hierachicalGraph->edgeList[j].getToVertex() == indexCellFrom) {
+                                hierachicalGraph->edgeList[j].setEdge(hierachicalGraph->edgeList[j]);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+            }
+        } else {//calculate the connection between cell from and to new
+
+            std::vector<edge> listOfContainingEdges;
+            std::vector<int> listOfConnectedVertexes;
+            getListofConnectedVertexAndEdges(this->lookUpTableCell[indexCellFrom], listOfContainingEdges,
+                                             listOfConnectedVertexes);
+
+            graphSlamSaveStructure currentSubGraph(this->hierachicalGraph->degreeOfFreedom);
+            for (int k = 0;
+                 k < this->lookUpTableCell[indexCellFrom].size(); k++) {//add vertices of cell indexCellFrom
+                vertex tmpVertex = this->vertexList[this->lookUpTableCell[indexCellFrom][k]];
+                currentSubGraph.addVertex(k, tmpVertex.getPositionVertex(), tmpVertex.getRotationVertex(),
+                                          tmpVertex.getCovariancePosition(),
+                                          tmpVertex.getCovarianceQuaternion());
+            }
+
+            for (int k = 0; k < this->lookUpTableCell[indexCellTo].size(); k++) {//add vertices of cell indexCellTo
+                vertex tmpVertex = this->vertexList[this->lookUpTableCell[indexCellTo][k]];
+                currentSubGraph.addVertex(k + (int) this->lookUpTableCell[indexCellFrom].size(),
+                                          tmpVertex.getPositionVertex(),
+                                          tmpVertex.getRotationVertex(),
+                                          tmpVertex.getCovariancePosition(),
+                                          tmpVertex.getCovarianceQuaternion());
+            }
+
+            std::vector<int> vertexIndexOfJoinedGraph = joinTwoLists(this->lookUpTableCell[indexCellFrom],
+                                                                     this->lookUpTableCell[indexCellTo]);//list of vertex index of cell indexCellFrom and cell indexCellTo
+            for (auto &currentEdge : this->edgeList) {//go threw complete edge lists
+
+                auto itFromVertex = std::find(vertexIndexOfJoinedGraph.begin(),
+                                              vertexIndexOfJoinedGraph.end(),
+                                              currentEdge.getFromVertex());
+                auto itToVertex = std::find(vertexIndexOfJoinedGraph.begin(),
+                                            vertexIndexOfJoinedGraph.end(),
+                                            currentEdge.getToVertex());
+
+                if (itFromVertex != vertexIndexOfJoinedGraph.end() &&
+                    itToVertex !=
+                    vertexIndexOfJoinedGraph.end()) {// check if edge is contained in joined graph
+                    int indexToVertex = std::distance(vertexIndexOfJoinedGraph.begin(), itToVertex);
+                    int indexFromVertex = std::distance(vertexIndexOfJoinedGraph.begin(), itFromVertex);
+                    currentSubGraph.addEdge(indexFromVertex, indexToVertex,
+                                            currentEdge.getPositionDifference(),
+                                            currentEdge.getRotationDifference(),
+                                            currentEdge.getCovariancePosition(),
+                                            currentEdge.getCovarianceQuaternion());
+                }
+            }
+            std::vector<int> holdStill{0};
+            edge resultingEdge = currentSubGraph.getEdgeBetweenNodes(0,
+                                                                     this->lookUpTableCell[indexCellFrom].size(),
+                                                                     holdStill);
+            bool edgeAlreadyThere = false;
+            for (int j = 0; j < hierachicalGraph->edgeList.size(); j++) {
+                if (hierachicalGraph->edgeList[j].getFromVertex() == indexCellFrom &&
+                    hierachicalGraph->edgeList[j].getToVertex() == indexCellTo ||
+                    hierachicalGraph->edgeList[j].getFromVertex() == indexCellTo &&
+                    hierachicalGraph->edgeList[j].getToVertex() == indexCellFrom) {
+                    hierachicalGraph->edgeList[j].setEdge(hierachicalGraph->edgeList[j]);
+                    edgeAlreadyThere = true;
+                    break;
+                }
+            }
+            if (!edgeAlreadyThere) {
+                hierachicalGraph->addEdge(indexCellFrom, indexCellTo, resultingEdge.getPositionDifference(),
+                                          resultingEdge.getRotationDifference(),
+                                          resultingEdge.getCovariancePosition(),
+                                          resultingEdge.getCovarianceQuaternion());
+            }
+        }
+    }
 }
 
 void
 graphSlamSaveStructure::addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-                                const Eigen::Quaternionf &rotationDifference, const float covariancePosition,
+                                const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
                                 const float covarianceQuaternion, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
+
+    if (std::isnan(covarianceQuaternion) ||
+        std::isnan(covariancePosition[0]) ||
+        std::isnan(covariancePosition[1])) {
+        std::cout << "IS NAN: " << std::endl;
+    }
+
+
     edge edgeToAdd(fromVertex, toVertex, positionDifference, rotationDifference, covariancePosition,
                    covarianceQuaternion,
-                   graphSlamSaveStructure::degreeOfFreedom, pointCloud);
-    graphSlamSaveStructure::numberOfEdges += 1;
-    graphSlamSaveStructure::edgeList.push_back(edgeToAdd);
+                   this->degreeOfFreedom, pointCloud);
+    this->numberOfEdges += 1;
+    this->edgeList.push_back(edgeToAdd);
+    if (this->hasHierachicalGraph) {
+        //get cell from
+        int indexCellFrom = graphSlamSaveStructure::getCellOfVertexIndex(this->edgeList.back().getFromVertex());
+        int indexCellTo = graphSlamSaveStructure::getCellOfVertexIndex(this->edgeList.back().getToVertex());
 
+        if (indexCellFrom == indexCellTo) {//calculate every connection new(subgraph)
+            std::vector<edge> listOfContainingEdges;
+            std::vector<int> listOfConnectedVertexes;
+            getListofConnectedVertexAndEdges(this->lookUpTableCell[indexCellFrom], listOfContainingEdges,
+                                             listOfConnectedVertexes);
+            for (int i = 0; i < this->lookUpTableCell.size(); i++) {
+                if (i != indexCellFrom) {
+
+                    bool containingConnection = checkIfElementsOfVectorAreEqual(this->lookUpTableCell[i],
+                                                                                listOfConnectedVertexes);//check if overlap exists
+                    if (containingConnection) {//create graph from indexCellFrom to i
+                        graphSlamSaveStructure currentSubGraph(this->hierachicalGraph->degreeOfFreedom);
+                        for (int k = 0;
+                             k < this->lookUpTableCell[indexCellFrom].size(); k++) {//add vertices of cell indexCellFrom
+                            vertex tmpVertex = this->vertexList[this->lookUpTableCell[indexCellFrom][k]];
+                            currentSubGraph.addVertex(k, tmpVertex.getPositionVertex(), tmpVertex.getRotationVertex(),
+                                                      tmpVertex.getCovariancePosition(),
+                                                      tmpVertex.getCovarianceQuaternion());
+                        }
+
+                        for (int k = 0; k < this->lookUpTableCell[i].size(); k++) {//add vertices of cell i
+                            vertex tmpVertex = this->vertexList[this->lookUpTableCell[i][k]];
+                            currentSubGraph.addVertex(k + (int) this->lookUpTableCell[indexCellFrom].size(),
+                                                      tmpVertex.getPositionVertex(),
+                                                      tmpVertex.getRotationVertex(),
+                                                      tmpVertex.getCovariancePosition(),
+                                                      tmpVertex.getCovarianceQuaternion());
+                        }
+
+                        std::vector<int> vertexIndexOfJoinedGraph = joinTwoLists(this->lookUpTableCell[indexCellFrom],
+                                                                                 this->lookUpTableCell[i]);//list of vertex index of cell indexCellFrom and cell i
+                        for (auto &currentEdge : this->edgeList) {//go threw complete edge lists
+
+                            auto itFromVertex = std::find(vertexIndexOfJoinedGraph.begin(),
+                                                          vertexIndexOfJoinedGraph.end(),
+                                                          currentEdge.getFromVertex());
+                            auto itToVertex = std::find(vertexIndexOfJoinedGraph.begin(),
+                                                        vertexIndexOfJoinedGraph.end(),
+                                                        currentEdge.getToVertex());
+
+                            if (itFromVertex != vertexIndexOfJoinedGraph.end() &&
+                                itToVertex !=
+                                vertexIndexOfJoinedGraph.end()) {// check if edge is contained in joined graph
+                                int indexToVertex = std::distance(vertexIndexOfJoinedGraph.begin(), itToVertex);
+                                int indexFromVertex = std::distance(vertexIndexOfJoinedGraph.begin(), itFromVertex);
+                                currentSubGraph.addEdge(indexFromVertex, indexToVertex,
+                                                        currentEdge.getPositionDifference(),
+                                                        currentEdge.getRotationDifference(),
+                                                        currentEdge.getCovariancePosition(),
+                                                        currentEdge.getCovarianceQuaternion());
+                            }
+                        }
+                        std::vector<int> holdStill{0};
+                        edge resultingEdge = currentSubGraph.getEdgeBetweenNodes(0,
+                                                                                 this->lookUpTableCell[i].size(),
+                                                                                 holdStill);
+
+                        for (int j = 0; j < hierachicalGraph->edgeList.size(); j++) {
+                            if (hierachicalGraph->edgeList[j].getFromVertex() == indexCellFrom &&
+                                hierachicalGraph->edgeList[j].getToVertex() == i ||
+                                hierachicalGraph->edgeList[j].getFromVertex() == i &&
+                                hierachicalGraph->edgeList[j].getToVertex() == indexCellFrom) {
+                                hierachicalGraph->edgeList[j].setEdge(hierachicalGraph->edgeList[j]);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+            }
+        } else {//calculate the connection between cell from and to new
+
+            std::vector<edge> listOfContainingEdges;
+            std::vector<int> listOfConnectedVertexes;
+            getListofConnectedVertexAndEdges(this->lookUpTableCell[indexCellFrom], listOfContainingEdges,
+                                             listOfConnectedVertexes);
+
+            graphSlamSaveStructure currentSubGraph(this->hierachicalGraph->degreeOfFreedom);
+            for (int k = 0;
+                 k < this->lookUpTableCell[indexCellFrom].size(); k++) {//add vertices of cell indexCellFrom
+                vertex tmpVertex = this->vertexList[this->lookUpTableCell[indexCellFrom][k]];
+                currentSubGraph.addVertex(k, tmpVertex.getPositionVertex(), tmpVertex.getRotationVertex(),
+                                          tmpVertex.getCovariancePosition(),
+                                          tmpVertex.getCovarianceQuaternion());
+            }
+
+            for (int k = 0; k < this->lookUpTableCell[indexCellTo].size(); k++) {//add vertices of cell indexCellTo
+                vertex tmpVertex = this->vertexList[this->lookUpTableCell[indexCellTo][k]];
+                currentSubGraph.addVertex(k + (int) this->lookUpTableCell[indexCellFrom].size(),
+                                          tmpVertex.getPositionVertex(),
+                                          tmpVertex.getRotationVertex(),
+                                          tmpVertex.getCovariancePosition(),
+                                          tmpVertex.getCovarianceQuaternion());
+            }
+
+            std::vector<int> vertexIndexOfJoinedGraph = joinTwoLists(this->lookUpTableCell[indexCellFrom],
+                                                                     this->lookUpTableCell[indexCellTo]);//list of vertex index of cell indexCellFrom and cell indexCellTo
+            for (auto &currentEdge : this->edgeList) {//go threw complete edge lists
+
+                auto itFromVertex = std::find(vertexIndexOfJoinedGraph.begin(),
+                                              vertexIndexOfJoinedGraph.end(),
+                                              currentEdge.getFromVertex());
+                auto itToVertex = std::find(vertexIndexOfJoinedGraph.begin(),
+                                            vertexIndexOfJoinedGraph.end(),
+                                            currentEdge.getToVertex());
+
+                if (itFromVertex != vertexIndexOfJoinedGraph.end() &&
+                    itToVertex !=
+                    vertexIndexOfJoinedGraph.end()) {// check if edge is contained in joined graph
+                    int indexToVertex = std::distance(vertexIndexOfJoinedGraph.begin(), itToVertex);
+                    int indexFromVertex = std::distance(vertexIndexOfJoinedGraph.begin(), itFromVertex);
+                    currentSubGraph.addEdge(indexFromVertex, indexToVertex,
+                                            currentEdge.getPositionDifference(),
+                                            currentEdge.getRotationDifference(),
+                                            currentEdge.getCovariancePosition(),
+                                            currentEdge.getCovarianceQuaternion());
+                }
+            }
+            std::vector<int> holdStill{0};
+            edge resultingEdge = currentSubGraph.getEdgeBetweenNodes(0,
+                                                                     this->lookUpTableCell[indexCellFrom].size(),
+                                                                     holdStill);
+            bool edgeAlreadyThere = false;
+            for (int j = 0; j < hierachicalGraph->edgeList.size(); j++) {
+                if (hierachicalGraph->edgeList[j].getFromVertex() == indexCellFrom &&
+                    hierachicalGraph->edgeList[j].getToVertex() == indexCellTo ||
+                    hierachicalGraph->edgeList[j].getFromVertex() == indexCellTo &&
+                    hierachicalGraph->edgeList[j].getToVertex() == indexCellFrom) {
+                    hierachicalGraph->edgeList[j].setEdge(hierachicalGraph->edgeList[j]);
+                    edgeAlreadyThere = true;
+                    break;
+                }
+            }
+            if (!edgeAlreadyThere) {
+                hierachicalGraph->addEdge(indexCellFrom, indexCellTo, resultingEdge.getPositionDifference(),
+                                          resultingEdge.getRotationDifference(),
+                                          resultingEdge.getCovariancePosition(),
+                                          resultingEdge.getCovarianceQuaternion());
+            }
+
+
+        }
+    }
 }
 
 void graphSlamSaveStructure::addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex,
-                                       Eigen::Quaternionf &rotationVertex,
-                                       Eigen::Vector3f covariancePosition, float covarianceQuaternion) {
+                                       const Eigen::Quaternionf &rotationVertex,
+                                       const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion) {
 
-    vertex vertexToAdd(vertexNumber, positionVertex, rotationVertex, graphSlamSaveStructure::degreeOfFreedom,
+    vertex vertexToAdd(vertexNumber, positionVertex, rotationVertex, this->degreeOfFreedom,
                        covariancePosition, covarianceQuaternion);
-    graphSlamSaveStructure::numberOfVertex += 1;
-    graphSlamSaveStructure::vertexList.push_back(vertexToAdd);
+    this->numberOfVertex += 1;
+    this->vertexList.push_back(vertexToAdd);
+// look at difference between new vertex and vertex of cell if bigger then cell size then new cell
+    if (this->hasHierachicalGraph) {
+        //calculate diff between new vertex and old vertex
+        Eigen::Vector3f positionDiff =
+                this->vertexList[this->lookUpTableCell.back()[0]].getRotationVertex().inverse() *
+                this->vertexList.back().getPositionVertex() -
+                this->vertexList[this->lookUpTableCell.back()[0]].getRotationVertex().inverse() *
+                this->vertexList[this->lookUpTableCell.back()[0]].getPositionVertex();
+        if (positionDiff.norm() > this->cellSize) {
+            //create new cell
+            std::vector<int> tmp;
+            this->lookUpTableCell.push_back(tmp);
+            this->lookUpTableCell.back().push_back(this->vertexList.back().getVertexNumber());
+            this->hierachicalGraph->addVertex((int) (this->lookUpTableCell.size() - 1), positionVertex, rotationVertex,
+                                              covariancePosition, covarianceQuaternion);
+        } else {
+            //add to current cell
+            this->lookUpTableCell.back().push_back(this->vertexList.back().getVertexNumber());
 
+        }
+        // optimize subgraphs, should not be done only if edge is connected
+    }
 }
 
 void graphSlamSaveStructure::addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex,
-                                       Eigen::Quaternionf &rotationVertex,
-                                       Eigen::Vector3f covariancePosition, float covarianceQuaternion,
+                                       const Eigen::Quaternionf &rotationVertex,
+                                       const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion,
                                        pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
 
-    vertex vertexToAdd(vertexNumber, positionVertex, rotationVertex, graphSlamSaveStructure::degreeOfFreedom,
+    vertex vertexToAdd(vertexNumber, positionVertex, rotationVertex, this->degreeOfFreedom,
                        pointCloud, covariancePosition, covarianceQuaternion);
-    graphSlamSaveStructure::numberOfVertex += 1;
-    graphSlamSaveStructure::vertexList.push_back(vertexToAdd);
+    this->numberOfVertex += 1;
+    this->vertexList.push_back(vertexToAdd);
+// look at difference between new vertex and vertex of cell if bigger then cell size then new cell
+    if (this->hasHierachicalGraph) {
+        //calculate diff between new vertex and old vertex
+        Eigen::Vector3f positionDiff =
+                this->vertexList[this->lookUpTableCell.back()[0]].getRotationVertex().inverse() *
+                this->vertexList.back().getPositionVertex() -
+                this->vertexList[this->lookUpTableCell.back()[0]].getRotationVertex().inverse() *
+                this->vertexList[this->lookUpTableCell.back()[0]].getPositionVertex();
+        if (positionDiff.norm() > this->cellSize) {
+            //create new cell
+            std::vector<int> tmp;
+            this->lookUpTableCell.push_back(tmp);
+            this->lookUpTableCell.back().push_back(this->vertexList.back().getVertexNumber());
+            this->hierachicalGraph->addVertex((int) (this->lookUpTableCell.size() - 1), positionVertex, rotationVertex,
+                                              covariancePosition, covarianceQuaternion);
 
-
+        } else {
+            //add to current cell
+            this->lookUpTableCell.back().push_back(this->vertexList.back().getVertexNumber());
+        }
+        // optimize subgraphs, should not be done only if edge is connected
+    }
 }
 
 Eigen::SparseMatrix<float> graphSlamSaveStructure::getInformationMatrix() {
     Eigen::SparseMatrix<float> informationMatrix(
-            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::degreeOfFreedom,
-            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::degreeOfFreedom);
+            this->numberOfEdges * this->degreeOfFreedom,
+            this->numberOfEdges * this->degreeOfFreedom);
 
-    for (int i = 0; i < graphSlamSaveStructure::numberOfEdges; i++) {
-        informationMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 0,
-                          i * graphSlamSaveStructure::degreeOfFreedom + 0) =
-                1 / graphSlamSaveStructure::edgeList[i].getCovariancePosition();
+    for (int i = 0; i < this->numberOfEdges; i++) {
+        informationMatrix.insert(i * this->degreeOfFreedom + 0,
+                                 i * this->degreeOfFreedom + 0) =
+                1 / std::pow(this->edgeList[i].getCovariancePosition()[0], 2);//from std to var
 
-        informationMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 1,
-                          i * graphSlamSaveStructure::degreeOfFreedom + 1) =
-                1 / graphSlamSaveStructure::edgeList[i].getCovariancePosition();
+        informationMatrix.insert(i * this->degreeOfFreedom + 1,
+                                 i * this->degreeOfFreedom + 1) =
+                1 / std::pow(this->edgeList[i].getCovariancePosition()[1], 2);//from std to var
 
-        informationMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 2,
-                          i * graphSlamSaveStructure::degreeOfFreedom + 2) =
-                1 / graphSlamSaveStructure::edgeList[i].getCovarianceQuaternion();
+        informationMatrix.insert(i * this->degreeOfFreedom + 2,
+                                 i * this->degreeOfFreedom + 2) =
+                1 / std::pow(this->edgeList[i].getCovarianceQuaternion(), 2);//from std to var
+
+        if (std::isnan(this->edgeList[i].getCovarianceQuaternion()) ||
+            std::isnan(this->edgeList[i].getCovariancePosition()[0]) ||
+            std::isnan(this->edgeList[i].getCovariancePosition()[1])) {
+            std::cout << "IS NAN: " << std::endl;
+        }
     }
     return informationMatrix;
 }
@@ -77,92 +432,153 @@ Eigen::SparseMatrix<float> graphSlamSaveStructure::getInformationMatrix() {
 
 Eigen::SparseMatrix<float> graphSlamSaveStructure::getJacobianMatrix() {
 //    Eigen::MatrixXf jacobianMatrix = Eigen::MatrixXf::Zero(
-//            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::degreeOfFreedom,
-//            graphSlamSaveStructure::numberOfVertex * graphSlamSaveStructure::degreeOfFreedom);
+//            this->numberOfEdges * this->degreeOfFreedom,
+//            this->numberOfVertex * this->degreeOfFreedom);
     Eigen::SparseMatrix<float> jacobianMatrix(
-            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::degreeOfFreedom,
-            graphSlamSaveStructure::numberOfVertex * graphSlamSaveStructure::degreeOfFreedom);
+            this->numberOfEdges * this->degreeOfFreedom,
+            this->numberOfVertex * this->degreeOfFreedom);
 
-    for (int i = 0; i < graphSlamSaveStructure::numberOfEdges; i++) {
+    for (int i = 0; i < this->numberOfEdges; i++) {
 
-        int fromVertex = graphSlamSaveStructure::edgeList[i].getFromVertex();
-        int toVertex = graphSlamSaveStructure::edgeList[i].getToVertex();
-        Eigen::Vector3f eulerAnglesRotation = graphSlamSaveStructure::vertexList[fromVertex].getRotationVertex().toRotationMatrix().eulerAngles(
+        int fromVertex = this->edgeList[i].getFromVertex();
+        int toVertex = this->edgeList[i].getToVertex();
+        Eigen::Vector3f eulerAnglesRotation = this->vertexList[fromVertex].getRotationVertex().toRotationMatrix().eulerAngles(
                 0, 1, 2);
         float alpha1 = eulerAnglesRotation[2];
-        float x1 = graphSlamSaveStructure::vertexList[fromVertex].getPositionVertex().x();
-        float y1 = graphSlamSaveStructure::vertexList[fromVertex].getPositionVertex().y();
+        float x1 = this->vertexList[fromVertex].getPositionVertex().x();
+        float y1 = this->vertexList[fromVertex].getPositionVertex().y();
 
-        float x2 = graphSlamSaveStructure::vertexList[toVertex].getPositionVertex().x();
-        float y2 = graphSlamSaveStructure::vertexList[toVertex].getPositionVertex().y();
+        float x2 = this->vertexList[toVertex].getPositionVertex().x();
+        float y2 = this->vertexList[toVertex].getPositionVertex().y();
 
 
-        //first row
+//        //first row
+//
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+//                              fromVertex * this->degreeOfFreedom + 0) = -cos(
+//                alpha1);//first collumn of fromVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+//                              fromVertex * this->degreeOfFreedom + 1) = -sin(
+//                alpha1);//second collumn of fromVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+//                              fromVertex * this->degreeOfFreedom + 2) =
+//                -sin(alpha1) * (x2 - x1) + cos(alpha1) * (y2 - y1);//third collumn of fromVertex
+//
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+//                              toVertex * this->degreeOfFreedom + 0) = cos(
+//                alpha1);//first collumn of toVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+//                              toVertex * this->degreeOfFreedom + 1) = sin(
+//                alpha1);//second collumn of toVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+//                              toVertex * this->degreeOfFreedom + 2) = 0;//third collumn of toVertex
+//
+//
+//        //second row
+//
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+//                              fromVertex * this->degreeOfFreedom + 0) = sin(
+//                alpha1);//first collumn of fromVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+//                              fromVertex * this->degreeOfFreedom + 1) = -cos(
+//                alpha1);//second collumn of fromVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+//                              fromVertex * this->degreeOfFreedom + 2) =
+//                -cos(alpha1) * (x2 - x1) - sin(alpha1) * (y2 - y1);//third collumn of fromVertex
+//
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+//                              toVertex * this->degreeOfFreedom + 0) = -sin(
+//                alpha1);//first collumn of toVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+//                              toVertex * this->degreeOfFreedom + 1) = cos(
+//                alpha1);//second collumn of toVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+//                              toVertex * this->degreeOfFreedom + 2) = 0;//third collumn of toVertex
+//
+//
+//        //third row
+//
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+//                              fromVertex * this->degreeOfFreedom +
+//                              0) = 0;//first collumn of fromVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+//                              fromVertex * this->degreeOfFreedom +
+//                              1) = 0;//second collumn of fromVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+//                              fromVertex * this->degreeOfFreedom +
+//                              2) = -1;//third collumn of fromVertex
+//
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+//                              toVertex * this->degreeOfFreedom + 0) = 0;//first collumn of toVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+//                              toVertex * this->degreeOfFreedom + 1) = 0;//second collumn of toVertex
+//        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+//                              toVertex * this->degreeOfFreedom + 2) = 1;//third collumn of toVertex
 
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 0,
-                              fromVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = -cos(
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+                              fromVertex * this->degreeOfFreedom + 0) = cos(
                 alpha1);//first collumn of fromVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 0,
-                              fromVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = -sin(
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+                              fromVertex * this->degreeOfFreedom + 1) = sin(
                 alpha1);//second collumn of fromVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 0,
-                              fromVertex * graphSlamSaveStructure::degreeOfFreedom + 2) =
-                -sin(alpha1) * (x2 - x1) + cos(alpha1) * (y2 - y1);//third collumn of fromVertex
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+                              fromVertex * this->degreeOfFreedom + 2) =
+                sin(alpha1) * (x2 - x1) + cos(alpha1) * (y1 - y2);//third collumn of fromVertex
 
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 0,
-                              toVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = cos(
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+                              toVertex * this->degreeOfFreedom + 0) = -cos(
                 alpha1);//first collumn of toVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 0,
-                              toVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = sin(
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+                              toVertex * this->degreeOfFreedom + 1) = -sin(
                 alpha1);//second collumn of toVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 0,
-                              toVertex * graphSlamSaveStructure::degreeOfFreedom + 2) = 0;//third collumn of toVertex
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 0,
+                              toVertex * this->degreeOfFreedom + 2) = 0;//third collumn of toVertex
 
 
         //second row
 
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 1,
-                              fromVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = sin(
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+                              fromVertex * this->degreeOfFreedom + 0) = -sin(
                 alpha1);//first collumn of fromVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 1,
-                              fromVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = -cos(
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+                              fromVertex * this->degreeOfFreedom + 1) = cos(
                 alpha1);//second collumn of fromVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 1,
-                              fromVertex * graphSlamSaveStructure::degreeOfFreedom + 2) =
-                -cos(alpha1) * (x2 - x1) - sin(alpha1) * (y2 - y1);//third collumn of fromVertex
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+                              fromVertex * this->degreeOfFreedom + 2) =
+                cos(alpha1) * (x2 - x1) + sin(alpha1) * (y2 - y1);//third collumn of fromVertex
 
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 1,
-                              toVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = -sin(
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+                              toVertex * this->degreeOfFreedom + 0) = sin(
                 alpha1);//first collumn of toVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 1,
-                              toVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = cos(
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+                              toVertex * this->degreeOfFreedom + 1) = -cos(
                 alpha1);//second collumn of toVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 1,
-                              toVertex * graphSlamSaveStructure::degreeOfFreedom + 2) = 0;//third collumn of toVertex
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 1,
+                              toVertex * this->degreeOfFreedom + 2) = 0;//third collumn of toVertex
 
 
         //third row
 
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 2,
-                              fromVertex * graphSlamSaveStructure::degreeOfFreedom +
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+                              fromVertex * this->degreeOfFreedom +
                               0) = 0;//first collumn of fromVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 2,
-                              fromVertex * graphSlamSaveStructure::degreeOfFreedom +
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+                              fromVertex * this->degreeOfFreedom +
                               1) = 0;//second collumn of fromVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 2,
-                              fromVertex * graphSlamSaveStructure::degreeOfFreedom +
-                              2) = -1;//third collumn of fromVertex
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+                              fromVertex * this->degreeOfFreedom +
+                              2) = 1;//third collumn of fromVertex
 
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 2,
-                              toVertex * graphSlamSaveStructure::degreeOfFreedom + 0) = 0;//first collumn of toVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 2,
-                              toVertex * graphSlamSaveStructure::degreeOfFreedom + 1) = 0;//second collumn of toVertex
-        jacobianMatrix.insert(i * graphSlamSaveStructure::degreeOfFreedom + 2,
-                              toVertex * graphSlamSaveStructure::degreeOfFreedom + 2) = 1;//third collumn of toVertex
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+                              toVertex * this->degreeOfFreedom + 0) = 0;//first collumn of toVertex
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+                              toVertex * this->degreeOfFreedom + 1) = 0;//second collumn of toVertex
+        jacobianMatrix.insert(i * this->degreeOfFreedom + 2,
+                              toVertex * this->degreeOfFreedom + 2) = -1;//third collumn of toVertex
 
     }
 
-    return -jacobianMatrix;
+    return jacobianMatrix;
 }
 
 float angleDiff(float first, float second) {//first-second
@@ -173,100 +589,100 @@ Eigen::MatrixXf graphSlamSaveStructure::getErrorMatrix() {
 
     //this is for DOF 3
     Eigen::MatrixXf error = Eigen::MatrixXf::Zero(
-            graphSlamSaveStructure::numberOfEdges * graphSlamSaveStructure::degreeOfFreedom,
+            this->numberOfEdges * this->degreeOfFreedom,
             1);//add an additional size for x0
-    for (int i = 0; i < graphSlamSaveStructure::numberOfEdges; i++) {
+    for (int i = 0; i < this->numberOfEdges; i++) {
 
-        int fromVertex = graphSlamSaveStructure::edgeList[i].getFromVertex();
-        int toVertex = graphSlamSaveStructure::edgeList[i].getToVertex();
+        int fromVertex = this->edgeList[i].getFromVertex();
+        int toVertex = this->edgeList[i].getToVertex();
 
-        Eigen::Vector3f eulerAnglesRotation = graphSlamSaveStructure::vertexList[fromVertex].getRotationVertex().toRotationMatrix().eulerAngles(
+        Eigen::Vector3f eulerAnglesRotation = this->vertexList[fromVertex].getRotationVertex().toRotationMatrix().eulerAngles(
                 0, 1, 2);
         Eigen::AngleAxisf rotation_vector1(-eulerAnglesRotation(2), Eigen::Vector3f(0, 0, 1));
         Eigen::Matrix2f currentRotation = rotation_vector1.matrix().block<2, 2>(0, 0);
 
 
         Eigen::Vector2f differenceBeforeRotation =
-                graphSlamSaveStructure::vertexList[toVertex].getPositionVertex().block<2, 1>(0, 0) -
-                graphSlamSaveStructure::vertexList[fromVertex].getPositionVertex().block<2, 1>(0, 0);
+                this->vertexList[toVertex].getPositionVertex().block<2, 1>(0, 0) -
+                this->vertexList[fromVertex].getPositionVertex().block<2, 1>(0, 0);
 
 
-        error.block<2, 1>(i * graphSlamSaveStructure::degreeOfFreedom, 0) =
-                graphSlamSaveStructure::edgeList[i].getPositionDifference().block<2, 1>(0, 0) -
+        error.block<2, 1>(i * this->degreeOfFreedom, 0) =
+                this->edgeList[i].getPositionDifference().block<2, 1>(0, 0) -
                 currentRotation * differenceBeforeRotation;
         //calculate angle difference
 
         float angleDiffVertex = angleDiff(
-                graphSlamSaveStructure::vertexList[toVertex].getRotationVertex().toRotationMatrix().eulerAngles(0, 1,
-                                                                                                                2)[2],
+                this->vertexList[toVertex].getRotationVertex().toRotationMatrix().eulerAngles(0, 1,
+                                                                                              2)[2],
                 eulerAnglesRotation(2));
 
         float angleErrorDiff = angleDiff(
-                graphSlamSaveStructure::edgeList[i].getRotationDifference().toRotationMatrix().eulerAngles(0, 1, 2)[2],
+                this->edgeList[i].getRotationDifference().toRotationMatrix().eulerAngles(0, 1, 2)[2],
                 angleDiffVertex);
 
-        error(i * graphSlamSaveStructure::degreeOfFreedom + 2, 0) = angleErrorDiff;
+        error(i * this->degreeOfFreedom + 2, 0) = angleErrorDiff;
     }
     return error;
 }
 
 void graphSlamSaveStructure::printCurrentState() {
     std::cout << "current State:" << std::endl;
-    for (int i = 0; i < graphSlamSaveStructure::numberOfVertex; i++) {
+    for (int i = 0; i < this->numberOfVertex; i++) {
         std::cout << "State:" << i << std::endl;
         std::cout << "Pos:" << std::endl;
-        std::cout << graphSlamSaveStructure::vertexList[i].getPositionVertex() << std::endl;
+        std::cout << this->vertexList[i].getPositionVertex() << std::endl;
         std::cout << "Rot:" << std::endl;
         std::cout <<
-                  graphSlamSaveStructure::vertexList[i].getRotationVertex().toRotationMatrix().eulerAngles(0, 1, 2)[2] *
+                  this->vertexList[i].getRotationVertex().toRotationMatrix().eulerAngles(0, 1, 2)[2] *
                   180 / M_PI << std::endl;
     }
 }
 
 void graphSlamSaveStructure::printCurrentStateGeneralInformation() {
-    std::cout << "Number of Vertex:" << graphSlamSaveStructure::numberOfVertex << std::endl;
-    for (int i = 0; i < graphSlamSaveStructure::numberOfVertex; i++) {
-        std::cout << "Vertex Nr. " << i << " Covariance "
-                  << graphSlamSaveStructure::vertexList[i].getCovariancePosition() << std::endl;
+    std::cout << "Number of Vertex:" << this->numberOfVertex << std::endl;
+    for (int i = 0; i < this->numberOfVertex; i++) {
+        std::cout << "Vertex Nr. " << i << " Pos:\n"
+                  << this->vertexList[i].getPositionVertex() << std::endl;
     }
 
-    std::cout << "Number of Edges:" << graphSlamSaveStructure::numberOfEdges << std::endl;
-    for (int i = 0; i < graphSlamSaveStructure::numberOfEdges; i++) {
-        std::cout << "Edge from " << graphSlamSaveStructure::edgeList[i].getFromVertex() << " to "
-                  << graphSlamSaveStructure::edgeList[i].getToVertex() << " covariance Position "
-                  << graphSlamSaveStructure::edgeList[i].getCovariancePosition() << std::endl;
+    std::cout << "Number of Edges:" << this->numberOfEdges << std::endl;
+    for (int i = 0; i < this->numberOfEdges; i++) {
+        std::cout << "Edge from " << this->edgeList[i].getFromVertex() << " to "
+                  << this->edgeList[i].getToVertex() << " covariance Position "
+                  << this->edgeList[i].getCovariancePosition() << std::endl;
     }
 
 }
 
-void graphSlamSaveStructure::addToState(std::vector<Eigen::Vector3f> &positionDifferenceVector,
-                                        std::vector<Eigen::Quaternionf> &rotationDifferenceVector) {
+void graphSlamSaveStructure::addToEveryState(std::vector<Eigen::Vector3f> &positionDifferenceVector,
+                                             std::vector<Eigen::Quaternionf> &rotationDifferenceVector) {
 
 
-    for (int i = 0; i < graphSlamSaveStructure::numberOfVertex; i++) {
-        Eigen::Vector3f currentStatePos = graphSlamSaveStructure::vertexList[i].getPositionVertex();
-        Eigen::Quaternionf currentStateRotation = graphSlamSaveStructure::vertexList[i].getRotationVertex();
-//        Eigen::Vector3f eulerAnglesRotation = graphSlamSaveStructure::vertexList[i].getRotationVertex().toRotationMatrix().eulerAngles(
+    for (int i = 0; i < this->numberOfVertex; i++) {
+        Eigen::Vector3f currentStatePos = this->vertexList[i].getPositionVertex();
+        Eigen::Quaternionf currentStateRotation = this->vertexList[i].getRotationVertex();
+//        Eigen::Vector3f eulerAnglesRotation = this->vertexList[i].getRotationVertex().toRotationMatrix().eulerAngles(
 //                0, 1, 2);
 //        float alpha1 = eulerAnglesRotation[2];
 
 
-        graphSlamSaveStructure::vertexList[i].setPositionVertex(currentStatePos + positionDifferenceVector[i]);
+        this->vertexList[i].setPositionVertex(currentStatePos + positionDifferenceVector[i]);
 
-        graphSlamSaveStructure::vertexList[i].setRotationVertex(currentStateRotation * rotationDifferenceVector[i]);
+        this->vertexList[i].setRotationVertex(currentStateRotation * rotationDifferenceVector[i]);
     }
 }
 
 void graphSlamSaveStructure::addToState(Eigen::MatrixXf &vectorToAdd) {
 
 
-    for (int i = 0; i < graphSlamSaveStructure::numberOfVertex; i++) {
-        float x = vectorToAdd(i * graphSlamSaveStructure::degreeOfFreedom + 0);
-        float y = vectorToAdd(i * graphSlamSaveStructure::degreeOfFreedom + 1);
-        float alpha = vectorToAdd(i * graphSlamSaveStructure::degreeOfFreedom + 2);
+    for (int i = 0; i < this->numberOfVertex; i++) {
+        float x = vectorToAdd(i * this->degreeOfFreedom + 0);
+        float y = vectorToAdd(i * this->degreeOfFreedom + 1);
+        float alpha = vectorToAdd(i * this->degreeOfFreedom + 2);
 
-        Eigen::Vector3f currentStatePos = graphSlamSaveStructure::vertexList[i].getPositionVertex();
-        Eigen::Quaternionf currentStateRotation = graphSlamSaveStructure::vertexList[i].getRotationVertex();
+        Eigen::Vector3f currentStatePos = this->vertexList[i].getPositionVertex();
+        Eigen::Quaternionf currentStateRotation = this->vertexList[i].getRotationVertex();
 
 
         Eigen::Vector3f addedStatePos(x, y, 0);
@@ -274,25 +690,153 @@ void graphSlamSaveStructure::addToState(Eigen::MatrixXf &vectorToAdd) {
         Eigen::Quaternionf addedRotation(rotation_vector1);
 
 
-        graphSlamSaveStructure::vertexList[i].setPositionVertex(currentStatePos + addedStatePos);
+        this->vertexList[i].setPositionVertex(currentStatePos + addedStatePos);
 
-        graphSlamSaveStructure::vertexList[i].setRotationVertex(currentStateRotation * addedRotation);
+        this->vertexList[i].setRotationVertex(currentStateRotation * addedRotation);
     }
 }
 
 vertex graphSlamSaveStructure::getVertexByIndex(const int i) {
-    if (i >= graphSlamSaveStructure::numberOfVertex) {
+    if (i >= this->numberOfVertex) {
         std::cout << "access to a vertex that doesnt exist" << std::endl;
         std::exit(-1);
     }
-    return graphSlamSaveStructure::vertexList[i];
+    return this->vertexList[i];
 }
 
 std::vector<vertex> graphSlamSaveStructure::getVertexList() {
-    return graphSlamSaveStructure::vertexList;
+    return this->vertexList;
 }
 
-void graphSlamSaveStructure::optimizeGraphWithSlam() {
+void graphSlamSaveStructure::optimizeGraphWithSlamTopDown(bool verbose) {
+    if (this->hasHierachicalGraph) {
+        this->hierachicalGraph->optimizeGraphWithSlamTopDown(verbose);
+        //std::vector<vertex> stateAfterOptimization = this->hierachicalGraph->getVertexList();
+        //test if difference between x(k) und x(k-1) is "big" if yes: change graph k-1 else do nothing
+        std::vector<int> cellListToUpdate;
+        for (auto &currentHierachicalSupGraphVertex : this->hierachicalGraph->vertexList) {// get the vertex number
+            Eigen::Vector3f diffPosition = currentHierachicalSupGraphVertex.getPositionVertex() -
+                                           this->vertexList[this->lookUpTableCell[currentHierachicalSupGraphVertex.getVertexNumber()][0]].getPositionVertex();
+            Eigen::Quaternionf diffRotation = currentHierachicalSupGraphVertex.getRotationVertex() *
+                                              this->vertexList[this->lookUpTableCell[currentHierachicalSupGraphVertex.getVertexNumber()][0]].getRotationVertex().inverse();
+            if (diffPosition.norm() > 0.1) {
+                //propagate down
+                for (int indexVertex : this->lookUpTableCell[currentHierachicalSupGraphVertex.getVertexNumber()]) {// also is done for every cell member
+                    this->vertexList[indexVertex].setPositionVertex(
+                            this->getVertexList()[indexVertex].getPositionVertex() + diffPosition);
+                    this->vertexList[indexVertex].setRotationVertex(
+                            diffRotation * this->getVertexList()[indexVertex].getRotationVertex());
+                }
+                cellListToUpdate.push_back(currentHierachicalSupGraphVertex.getVertexNumber());
+            }
+        }
+        for (auto cellToUpdate:cellListToUpdate) {
+            // should optimize sub graph anew keep both keyframes between them still
+            for (int i = 0; i < this->hierachicalGraph->edgeList.size(); i++) {
+                if (this->hierachicalGraph->edgeList[i].getFromVertex() == cellToUpdate) {
+                    graphSlamSaveStructure currentSubGraph(this->hierachicalGraph->degreeOfFreedom);
+                    bool connectionExists = createSubGraphBetweenCell(cellToUpdate,
+                                                                      this->hierachicalGraph->edgeList[i].getToVertex(),
+                                                                      currentSubGraph);
+                    if (connectionExists) {
+                        //optimize graph and calculate the edge between the two representing nodes
+                        //representing nodes are: first of currentSubGraph and cellVertexLookUpList[i].size()
+                        std::vector<int> holdStill{0, (int) this->lookUpTableCell[cellToUpdate].size()};
+                        currentSubGraph.optimizeGraphWithSlam(false, holdStill);
+                        int j=0;
+                        for (auto vertexIndex:this->lookUpTableCell[this->hierachicalGraph->edgeList[i].getFromVertex()]) {
+                            this->vertexList[vertexIndex].setPositionVertex(currentSubGraph.getVertexByIndex(j).getPositionVertex());
+                            this->vertexList[vertexIndex].setRotationVertex(currentSubGraph.getVertexByIndex(j).getRotationVertex());
+                            j++;
+                        }
+                        //j=0;
+                        for (auto vertexIndex:this->lookUpTableCell[this->hierachicalGraph->edgeList[i].getToVertex()]) {
+                            this->vertexList[vertexIndex].setPositionVertex(currentSubGraph.getVertexByIndex(j).getPositionVertex());
+                            this->vertexList[vertexIndex].setRotationVertex(currentSubGraph.getVertexByIndex(j).getRotationVertex());
+                            j++;
+                        }
+
+
+                    } else {
+                        std::cout << "this should never happen" << std::endl;
+                        exit(-1);
+                    }
+
+                } else {
+                    if (this->hierachicalGraph->edgeList[i].getToVertex() == cellToUpdate) {
+                        graphSlamSaveStructure currentSubGraph(this->hierachicalGraph->degreeOfFreedom);
+                        bool connectionExists = createSubGraphBetweenCell(
+                                this->hierachicalGraph->edgeList[i].getFromVertex(),
+                                cellToUpdate, currentSubGraph);
+                        if (connectionExists) {
+                            //optimize graph and calculate the edge between the two representing nodes
+                            //representing nodes are: first of currentSubGraph and cellVertexLookUpList[i].size()
+                            std::vector<int> holdStill{0,
+                                                       (int) this->lookUpTableCell[this->hierachicalGraph->edgeList[i].getFromVertex()].size()};
+                            //edge resultingEdge = currentSubGraph.getEdgeBetweenNodes(0, holdStill[1], holdStill);
+
+                            currentSubGraph.optimizeGraphWithSlam(false, holdStill);
+
+                            int j=0;
+                            for (auto vertexIndex:this->lookUpTableCell[this->hierachicalGraph->edgeList[i].getFromVertex()]) {
+                                this->vertexList[vertexIndex].setPositionVertex(currentSubGraph.getVertexByIndex(j).getPositionVertex());
+                                this->vertexList[vertexIndex].setRotationVertex(currentSubGraph.getVertexByIndex(j).getRotationVertex());
+                                j++;
+                            }
+                            //j=0;
+                            for (auto vertexIndex:this->lookUpTableCell[this->hierachicalGraph->edgeList[i].getToVertex()]) {
+                                this->vertexList[vertexIndex].setPositionVertex(currentSubGraph.getVertexByIndex(j).getPositionVertex());
+                                this->vertexList[vertexIndex].setRotationVertex(currentSubGraph.getVertexByIndex(j).getRotationVertex());
+                                j++;
+                            }
+
+
+                        } else {
+                            std::cout << "this should never happen" << std::endl;
+                            exit(-1);
+                        }
+                    }
+                }
+            }
+        }
+
+
+        // next the covariance should be added at lower levels
+        for (auto &currentSubGraphVertex : this->hierachicalGraph->getVertexList()) {// get the vertex list
+            for (int indexVertex : this->lookUpTableCell[currentSubGraphVertex.getVertexNumber()]) {// change the covariance for each cellmember dependend on the covariance of vertex
+                this->vertexList[indexVertex].setCovariancePosition(currentSubGraphVertex.getCovariancePosition());
+                this->vertexList[indexVertex].setCovarianceQuaternion(
+                        currentSubGraphVertex.getCovarianceQuaternion());
+            }
+        }
+
+    } else {
+        std::vector<int> holdStill{0};
+        this->optimizeGraphWithSlam(verbose, holdStill);
+    }
+
+}
+
+void printInformationAboutMatrix(Eigen::SparseMatrix<float> matrix, Eigen::MatrixXf bMatrix) {
+
+    Eigen::JacobiSVD<Eigen::MatrixXf> svd(matrix);
+    //std::cout << "Its singular values are:" << std::endl << svd.singularValues() << std::endl;
+    std::cout << "The Rank is:" << std::endl << svd.rank() << std::endl;
+    std::cout << "The rows is:" << std::endl << svd.rows() << std::endl;
+    std::cout << "The cols is:" << std::endl << svd.cols() << std::endl;
+    std::cout << "The Determinant is:" << std::endl << matrix.toDense().determinant() << std::endl;
+
+    Eigen::SimplicialCholesky<Eigen::SparseMatrix<float> > solveForxTest(matrix);
+    Eigen::MatrixXf vectorToAddTest;
+    vectorToAddTest = solveForxTest.solve(-bMatrix);
+    std::cout << "The Solution to hx=-b is norm:" << std::endl << vectorToAddTest.norm() << std::endl;
+
+
+}
+
+void graphSlamSaveStructure::optimizeGraphWithSlam(bool verbose, std::vector<int> &holdStill) {
+
+
     Eigen::MatrixXf errorMatrix;
     Eigen::SparseMatrix<float> informationMatrix;
     Eigen::SparseMatrix<float> jacobianMatrix;
@@ -306,91 +850,489 @@ void graphSlamSaveStructure::optimizeGraphWithSlam() {
 
     for (int i = 0; i < 20; i++) {
 
-        informationMatrix = graphSlamSaveStructure::getInformationMatrix();
-        errorMatrix = graphSlamSaveStructure::getErrorMatrix();
-        jacobianMatrix = graphSlamSaveStructure::getJacobianMatrix();
-
+        informationMatrix = this->getInformationMatrix();
+        errorMatrix = this->getErrorMatrix();
+        jacobianMatrix = this->getJacobianMatrix();
         bMatrix = (errorMatrix.transpose() * informationMatrix * jacobianMatrix).transpose();
         hMatrix = jacobianMatrix.transpose() * informationMatrix * jacobianMatrix;
         //hMatrix.block<3, 3>(0, 0) = hMatrix.block<3, 3>(0, 0) + Eigen::MatrixXf::Identity(3, 3);
-        hMatrix.coeffRef(0,0) = hMatrix.coeff(0,0)+1;//add identity matrix to solve equation
-        hMatrix.coeffRef(1,1) = hMatrix.coeff(1,1)+1;
-        hMatrix.coeffRef(2,2) = hMatrix.coeff(2,2)+1;
 
+        //test scaling
+        float multiplicator = 1 / ((float) hMatrix.rows());
+        hMatrix = multiplicator * hMatrix;
+        bMatrix = multiplicator * bMatrix;
 
-//        Eigen::SparseMatrix<double> mat(hMatrix);
-//        Eigen::SparseMatrix<double> mat(hMatrix.rows(),hMatrix.cols());
-//        mat = hMatrix.sparseView();
-//        Eigen::SimplicialCholesky<Eigen::SparseMatrix<double>> chol(mat);
-
-        //vectorToAdd = gainVector * hMatrix.colPivHouseholderQr().solve(-bMatrix);
-
-        Eigen::SimplicialCholesky<Eigen::SparseMatrix<float> > solveForx(hMatrix);
-        vectorToAdd = gainVector * solveForx.solve(-bMatrix);
-//        hMatrix.block<3, 3>(0, 0) = hMatrix.block<3, 3>(0, 0) - Eigen::MatrixXf::Identity(3, 3);
-        hMatrix.coeffRef(0,0) = hMatrix.coeff(0,0)-1;//remove identity matrix beacause of solving
-        hMatrix.coeffRef(1,1) = hMatrix.coeff(1,1)-1;
-        hMatrix.coeffRef(2,2) = hMatrix.coeff(2,2)-1;
-        graphSlamSaveStructure::addToState(vectorToAdd);
-
-
-        Eigen::SimplicialCholesky<Eigen::SparseMatrix<float> > findHInv(
-                hMatrix.block(0, 0, ((graphSlamSaveStructure::numberOfVertex - 1) *
-                                     graphSlamSaveStructure::degreeOfFreedom),
-                              ((graphSlamSaveStructure::numberOfVertex - 1) *
-                               graphSlamSaveStructure::degreeOfFreedom)));
-
-        Eigen::SparseMatrix<float> identityMatrix((graphSlamSaveStructure::numberOfVertex - 1) *
-                                                  graphSlamSaveStructure::degreeOfFreedom,
-                                                  ((graphSlamSaveStructure::numberOfVertex - 1) *
-                                                   graphSlamSaveStructure::degreeOfFreedom));
-
-        for (int k = 0;k<(graphSlamSaveStructure::numberOfVertex - 1) *graphSlamSaveStructure::degreeOfFreedom;k++){
-            identityMatrix.insert(k,k)=1;
+        for (auto &vertexIndexToHold : holdStill) {//add identity matrix to solve equation
+            hMatrix.coeffRef(vertexIndexToHold * this->degreeOfFreedom + 0,
+                             vertexIndexToHold * this->degreeOfFreedom + 0) =
+                    hMatrix.coeff(vertexIndexToHold * this->degreeOfFreedom + 0,
+                                  vertexIndexToHold * this->degreeOfFreedom + 0) +
+                    1;
+            hMatrix.coeffRef(vertexIndexToHold * this->degreeOfFreedom + 1,
+                             vertexIndexToHold * this->degreeOfFreedom + 1) =
+                    hMatrix.coeff(vertexIndexToHold * this->degreeOfFreedom + 1,
+                                  vertexIndexToHold * this->degreeOfFreedom + 1) + 1;
+            hMatrix.coeffRef(vertexIndexToHold * this->degreeOfFreedom + 2,
+                             vertexIndexToHold * this->degreeOfFreedom + 2) =
+                    hMatrix.coeff(vertexIndexToHold * this->degreeOfFreedom + 2,
+                                  vertexIndexToHold * this->degreeOfFreedom + 2) + 1;
         }
+//        Eigen::SparseMatrix<float> identityAddingTest(hMatrix.rows(),
+//                                                      hMatrix.cols());
+//        for (int k = 0; k < hMatrix.rows(); k++) {
+//            identityAddingTest.insert(k, k) = hMatrix.rows();
+//        }
+        //hMatrix = hMatrix+identityAddingTest;
 
-        hMatrixInverse = findHInv.solve(identityMatrix);
-        covarianzeSquared = hMatrixInverse.diagonal();
-
-//        std::cout << "VectorXf size:" << std::endl;
-//        std::cout << covarianzeSquared.size() << std::endl;
-//        std::cout << "errorMatrix:" << std::endl;
-//        std::cout << errorMatrix << std::endl;
-//        std::cout << "informationMatrix:" << std::endl;
-//        std::cout << informationMatrix << std::endl;
-//        std::cout << "jacobianMatrix:" << std::endl;
-//        std::cout << jacobianMatrix << std::endl;
 //        std::cout << "bMatrix:" << std::endl;
 //        std::cout << bMatrix << std::endl;
 //        std::cout << "hMatrix:" << std::endl;
-//        std::cout << hMatrix << std::endl;
-//        Eigen::MatrixXf tmp;
-//        tmp = hMatrix.inverse();
-//        tmp = (tmp.array() < 0.001 && tmp.array() > -0.001).select(0, tmp);
-//        std::cout << "hMatrix Inversed diagonal:" << std::endl;
-//        std::cout << covarianzeSquared << std::endl;
-//        std::cout << "solve Hx=-b:" << std::endl;
-//        std::cout << vectorToAdd << std::endl;
-//        std::cout << "complete error: " << errorMatrix.norm() << std::endl;
+//        std::cout << hMatrix.toDense() << std::endl;
+        if (std::isnan(errorMatrix.norm())) {
+            std::cout << "IS NAN: " << std::endl;
+            std::cout << "Minimized at error: " << errorMatrix.norm() << std::endl;
+        }
+        //vectorToAdd = gainVector * hMatrix.colPivHouseholderQr().solve(-bMatrix);
+
+        Eigen::SimplicialCholesky<Eigen::SparseMatrix<float> > solveForx(hMatrix);
+        if (solveForx.determinant() == 0) {
+            std::cout << "Determinant is 0" << std::endl;
+        }
+        vectorToAdd = gainVector * solveForx.solve(-bMatrix);
+
+//        hMatrix.block<3, 3>(0, 0) = hMatrix.block<3, 3>(0, 0) - Eigen::MatrixXf::Identity(3, 3);
+        if (vectorToAdd.norm() > 1000 || std::isnan(errorMatrix.norm())) {
+            printInformationAboutMatrix(hMatrix, bMatrix);
+            Eigen::SparseMatrix<float> hMatrixTest1, hMatrixTest2, hMatrixTest3, hMatrixTest4;
+            hMatrixTest1 = jacobianMatrix.transpose() * jacobianMatrix;
+            hMatrixTest2 = jacobianMatrix.transpose() * informationMatrix * jacobianMatrix;
+            multiplicator = 1 / ((float) hMatrixTest2.rows());
+            hMatrixTest3 = multiplicator * hMatrixTest2;
+            //test just hMatrixTest
+            printInformationAboutMatrix(hMatrixTest1, bMatrix);
+            printInformationAboutMatrix(hMatrixTest2, bMatrix);
+            printInformationAboutMatrix(hMatrixTest3, multiplicator * bMatrix);
+
+            hMatrixTest1.coeffRef(0, 0) = hMatrixTest1.coeff(0, 0) + 1;//add identity matrix to solve equation
+            hMatrixTest1.coeffRef(1, 1) = hMatrixTest1.coeff(1, 1) + 1;
+            hMatrixTest1.coeffRef(2, 2) = hMatrixTest1.coeff(2, 2) + 1;
+
+            hMatrixTest2.coeffRef(0, 0) = hMatrixTest2.coeff(0, 0) + 1;//add identity matrix to solve equation
+            hMatrixTest2.coeffRef(1, 1) = hMatrixTest2.coeff(1, 1) + 1;
+            hMatrixTest2.coeffRef(2, 2) = hMatrixTest2.coeff(2, 2) + 1;
+
+            hMatrixTest3.coeffRef(0, 0) = hMatrixTest3.coeff(0, 0) + 1;//add identity matrix to solve equation
+            hMatrixTest3.coeffRef(1, 1) = hMatrixTest3.coeff(1, 1) + 1;
+            hMatrixTest3.coeffRef(2, 2) = hMatrixTest3.coeff(2, 2) + 1;
+
+            printInformationAboutMatrix(hMatrixTest1, bMatrix);
+            printInformationAboutMatrix(hMatrixTest2, bMatrix);
+            printInformationAboutMatrix(hMatrixTest3, multiplicator * bMatrix);
+        }
+        if (verbose) {
+            std::cout << "hMatrix determinant" << std::endl;
+            std::cout << hMatrix.toDense().determinant() << std::endl;
+            std::cout << "hMatrix:" << std::endl;
+            std::cout << hMatrix.toDense() << std::endl;
+            if (std::isinf(hMatrix.toDense().determinant())) {
+                std::cout << "hMatrix determinant" << std::endl;
+                std::cout << hMatrix.toDense().determinant() << std::endl;
+                std::cout << "hMatrix:" << std::endl;
+                std::cout << hMatrix.toDense() << std::endl;
+                Eigen::JacobiSVD<Eigen::MatrixXf> svd(hMatrix.toDense());
+                std::cout << "Its singular values are:" << std::endl << svd.singularValues() << std::endl;
+            }
+        }
+
+        for (auto &vertexIndexToHold : holdStill) {//remove identity matrix to solve equation
+            hMatrix.coeffRef(vertexIndexToHold * this->degreeOfFreedom + 0,
+                             vertexIndexToHold * this->degreeOfFreedom + 0) =
+                    hMatrix.coeff(vertexIndexToHold * this->degreeOfFreedom + 0,
+                                  vertexIndexToHold * this->degreeOfFreedom + 0) -
+                    1;//add identity matrix to solve equation
+            hMatrix.coeffRef(vertexIndexToHold * this->degreeOfFreedom + 1,
+                             vertexIndexToHold * this->degreeOfFreedom + 1) =
+                    hMatrix.coeff(vertexIndexToHold * this->degreeOfFreedom + 1,
+                                  vertexIndexToHold * this->degreeOfFreedom + 1) - 1;
+            hMatrix.coeffRef(vertexIndexToHold * this->degreeOfFreedom + 2,
+                             vertexIndexToHold * this->degreeOfFreedom + 2) =
+                    hMatrix.coeff(vertexIndexToHold * this->degreeOfFreedom + 2,
+                                  vertexIndexToHold * this->degreeOfFreedom + 2) - 1;
+            //hMatrix = hMatrix-identityAddingTest;
+            if (this->degreeOfFreedom == 3) {
+                vectorToAdd(vertexIndexToHold * this->degreeOfFreedom + 0) = 0;
+                vectorToAdd(vertexIndexToHold * this->degreeOfFreedom + 1) = 0;
+                vectorToAdd(vertexIndexToHold * this->degreeOfFreedom + 2) = 0;
+            }
+        }
+        this->addToState(vectorToAdd);
 
 
-        if (0.00001 > errorLast - errorMatrix.norm()) {
-            std::cout << "out at i = " << i << std::endl;
+        Eigen::SimplicialCholesky<Eigen::SparseMatrix<float> > findHInv(
+                hMatrix.block(0, 0, ((this->numberOfVertex - 1) *
+                                     this->degreeOfFreedom),
+                              ((this->numberOfVertex - 1) *
+                               this->degreeOfFreedom)));
+
+        Eigen::SparseMatrix<float> identityMatrix((this->numberOfVertex - 1) *
+                                                  this->degreeOfFreedom,
+                                                  ((this->numberOfVertex - 1) *
+                                                   this->degreeOfFreedom));
+
+        for (int k = 0;
+             k < (this->numberOfVertex - 1) * this->degreeOfFreedom; k++) {
+            identityMatrix.insert(k, k) = 1;
+        }
+
+        hMatrixInverse = findHInv.solve(multiplicator * identityMatrix);
+        covarianzeSquared = hMatrixInverse.diagonal();
+        //std::cout << "covariance Squared" << covarianzeSquared << std::endl;
+
+
+
+        if (verbose) {
+            std::cout << "VectorXf size:" << std::endl;
+            std::cout << covarianzeSquared.size() << std::endl;
+            std::cout << "covarianzeSquared:" << std::endl;
+            std::cout << covarianzeSquared << std::endl;
+            std::cout << "informationMatrix:" << std::endl;
+            std::cout << informationMatrix << std::endl;
+            std::cout << "jacobianMatrix:" << std::endl;
+            std::cout << jacobianMatrix << std::endl;
+            std::cout << "bMatrix:" << std::endl;
+            std::cout << bMatrix << std::endl;
+            std::cout << "hMatrix:" << std::endl;
+            std::cout << hMatrix.toDense() << std::endl;
+            std::cout << "hMatrix determinant" << std::endl;
+            std::cout << hMatrix.toDense().determinant() << std::endl;
+            std::cout << "hMatrix Inversed diagonal:" << std::endl;
+            std::cout << covarianzeSquared << std::endl;
+            std::cout << "solve Hx=-b:" << std::endl;
+            std::cout << vectorToAdd << std::endl;
+            std::cout << "complete error: " << errorMatrix.norm() << std::endl;
+            std::cout << "i = " << i << std::endl;
+        }
+
+//        if (0.00001 > errorLast - errorMatrix.norm()&&errorMatrix.norm()!=0) {
+//            std::cout << "Error got worse " << std::endl;
+//        }
+        if (0.00001 > std::abs(errorLast - errorMatrix.norm())) {
+            if (verbose) { std::cout << "out at i = " << i << std::endl; }
             break;
         }
         errorLast = errorMatrix.norm();
     }
 
-    for (int i = 0; i < graphSlamSaveStructure::numberOfVertex - 1; i++) {//apply the covariance to the current graph
-        graphSlamSaveStructure::vertexList[i].setCovarianceQuaternion(
-                sqrt(covarianzeSquared[i * graphSlamSaveStructure::degreeOfFreedom + 2]));
-        Eigen::Vector3f covariancePos(sqrt(covarianzeSquared[i * graphSlamSaveStructure::degreeOfFreedom + 0]),
-                                      sqrt(covarianzeSquared[i * graphSlamSaveStructure::degreeOfFreedom + 1]), 0);
-        graphSlamSaveStructure::vertexList[i].setCovariancePosition(covariancePos);
+    for (int i = 0; i < this->numberOfVertex - 1; i++) {//apply the covariance to the current graph
+        this->vertexList[i].setCovarianceQuaternion(
+                sqrt(covarianzeSquared[i * this->degreeOfFreedom + 2]));
+        Eigen::Vector3f covariancePos(sqrt(covarianzeSquared[i * this->degreeOfFreedom + 0]),
+                                      sqrt(covarianzeSquared[i * this->degreeOfFreedom + 1]), 0);
+        this->vertexList[i].setCovariancePosition(covariancePos);
     }
-    std::cout << "Minimized at error: " << errorMatrix.norm() << std::endl;
+    if (verbose) { std::cout << "Minimized at error: " << errorMatrix.norm() << std::endl; }
+
 }
 
 
+void graphSlamSaveStructure::lookupTableCreation(float minDistanceForNewCell) {
 
+    this->lookUpTableCell.clear();
+    std::vector<int> tmp1;
+    this->lookUpTableCell.push_back(tmp1);
+    this->lookUpTableCell[0].push_back(this->vertexList[0].getVertexNumber());
+    int indexCell = 0;
+    for (int i = 1; i < this->numberOfVertex; i++) {//starting at i = 1 vertex
+        // calculate diff between first node of current cell, and i'th vertex
+        Eigen::Vector3f positionDiff =
+                this->vertexList[this->lookUpTableCell[indexCell][0]].getRotationVertex().inverse() *
+                this->vertexList[i].getPositionVertex() -
+                this->vertexList[this->lookUpTableCell[indexCell][0]].getRotationVertex().inverse() *
+                this->vertexList[this->lookUpTableCell[indexCell][0]].getPositionVertex();
+        if (positionDiff.norm() > minDistanceForNewCell) {
+            //create new cell
+            indexCell++;
+            std::vector<int> tmp;
+            this->lookUpTableCell.push_back(tmp);
+            this->lookUpTableCell[indexCell].push_back(this->vertexList[i].getVertexNumber());
+        } else {
+            //add to current cell
+            this->lookUpTableCell[indexCell].push_back(this->vertexList[i].getVertexNumber());
+        }
+    }
+}
+
+void graphSlamSaveStructure::initiallizeSubGraphs(
+        std::deque<float> cellSizes) {//this is useful for the beginning of innitialization
+
+    this->createHierachicalGraph(cellSizes[0]);
+    cellSizes.pop_front();
+    if (!cellSizes.empty()) {
+        this->hierachicalGraph->initiallizeSubGraphs(cellSizes);
+    }
+}
+
+void graphSlamSaveStructure::getListofConnectedVertexAndEdges(std::vector<int> &vertexIndicesofICell,
+                                                              std::vector<edge> &listOfContainingEdges,
+                                                              std::vector<int> &listOfConnectedVertexes) {//go threw cell I and save edges connected to it
+//check if vertex is in edge, if true save the edge
+    for (auto &currentEdge : this->edgeList) {// get the vertex number
+
+        if (std::find(vertexIndicesofICell.begin(), vertexIndicesofICell.end(),
+                      currentEdge.getFromVertex()) != vertexIndicesofICell.end() ||
+            std::find(vertexIndicesofICell.begin(), vertexIndicesofICell.end(),
+                      currentEdge.getToVertex()) !=
+            vertexIndicesofICell.end()) {//check if edge (from/to) is contained in vertex list
+/* edge contains vertex of interest */
+            listOfContainingEdges.push_back(currentEdge);
+            listOfConnectedVertexes.push_back(currentEdge.getToVertex());
+            listOfConnectedVertexes.push_back(currentEdge.getFromVertex());
+        }
+    }
+}
+
+void graphSlamSaveStructure::createHierachicalGraph(float cellSizeDes) {
+    this->cellSize = cellSizeDes;
+    this->lookupTableCreation(this->cellSize);//creating each cell with containing graph
+    hierachicalGraph = new graphSlamSaveStructure(this->degreeOfFreedom);
+    // create hierachical graph
+
+    for (int i = 0; i < this->lookUpTableCell.size(); i++) {
+        // sort in into vertex list
+        vertex addedVertex = this->vertexList[this->lookUpTableCell[i][0]];
+        hierachicalGraph->addVertex(i, addedVertex.getPositionVertex(), addedVertex.getRotationVertex(),
+                                    addedVertex.getCovariancePosition(), addedVertex.getCovarianceQuaternion());
+    }
+
+    for (int i = 0; i < this->lookUpTableCell.size(); i++) {// go threw vertex list of cells i current cell
+        for (int j = i + 1; j < this->lookUpTableCell.size(); j++) {// go threw rest cells to find connecting edges
+            graphSlamSaveStructure currentSubGraph(this->hierachicalGraph->degreeOfFreedom);
+            bool connectionExists = createSubGraphBetweenCell(i, j, currentSubGraph);
+            if (connectionExists) {
+                //optimize graph and calculate the edge between the two representing nodes
+                //representing nodes are: first of currentSubGraph and cellVertexLookUpList[i].size()
+                std::vector<int> holdStill{0};
+                edge resultingEdge = currentSubGraph.getEdgeBetweenNodes(0, this->lookUpTableCell[i].size(), holdStill);
+                hierachicalGraph->addEdge(i, j, resultingEdge.getPositionDifference(),
+                                          resultingEdge.getRotationDifference(), resultingEdge.getCovariancePosition(),
+                                          resultingEdge.getCovarianceQuaternion());
+            }
+        }
+    }
+    this->hasHierachicalGraph = true;
+}
+
+
+edge graphSlamSaveStructure::getEdgeBetweenNodes(int fromVertex, int toVertex, std::vector<int> &holdStill) {
+    this->optimizeGraphWithSlam(false, holdStill);
+    Eigen::MatrixXf errorMatrix;
+    Eigen::SparseMatrix<float> informationMatrix;
+    Eigen::SparseMatrix<float> jacobianMatrix;
+    Eigen::MatrixXf bMatrix;
+    Eigen::SparseMatrix<float> hMatrix;
+    Eigen::SparseMatrix<float> hMatrixInverse;// without last pose
+    Eigen::MatrixXf vectorToAdd;
+    Eigen::VectorXf covarianzeSquared;
+
+    informationMatrix = this->getInformationMatrix();
+    errorMatrix = this->getErrorMatrix();
+    jacobianMatrix = this->getJacobianMatrix();
+
+    hMatrix = jacobianMatrix.transpose() * informationMatrix * jacobianMatrix;
+
+    removeRowColumn(hMatrix, fromVertex);
+
+    Eigen::SimplicialCholesky<Eigen::SparseMatrix<float> > findHInv(hMatrix);
+
+    Eigen::SparseMatrix<float> identityMatrix((this->numberOfVertex - 1) *
+                                              this->degreeOfFreedom,
+                                              ((this->numberOfVertex - 1) *
+                                               this->degreeOfFreedom));
+
+    for (int k = 0;
+         k < (this->numberOfVertex - 1) * this->degreeOfFreedom; k++) {
+        identityMatrix.insert(k, k) = 1;
+    }
+
+    hMatrixInverse = findHInv.solve(identityMatrix);
+    covarianzeSquared = hMatrixInverse.diagonal();
+//    std::cout << "covarianzeSquared:" << std::endl;
+//    std::cout << covarianzeSquared << std::endl;
+    for (int i = 0; i <
+                    this->numberOfVertex; i++) {
+        if (i < fromVertex) {
+            int indexI = i;
+            this->vertexList[indexI].setCovarianceQuaternion(
+                    sqrt(covarianzeSquared[i * this->degreeOfFreedom + 2]));
+            Eigen::Vector3f covariancePos(sqrt(covarianzeSquared[i * this->degreeOfFreedom + 0]),
+                                          sqrt(covarianzeSquared[i * this->degreeOfFreedom + 1]), 0);
+            this->vertexList[indexI].setCovariancePosition(covariancePos);
+        } else {
+            if (i > fromVertex) {
+                int indexI = i - 1;
+                this->vertexList[i].setCovarianceQuaternion(
+                        sqrt(covarianzeSquared[indexI * this->degreeOfFreedom + 2]));
+                Eigen::Vector3f covariancePos(sqrt(covarianzeSquared[indexI * this->degreeOfFreedom + 0]),
+                                              sqrt(covarianzeSquared[indexI * this->degreeOfFreedom + 1]),
+                                              0);
+                this->vertexList[i].setCovariancePosition(covariancePos);
+            } else {
+                // i == from vertex
+                this->vertexList[fromVertex].setCovarianceQuaternion(0);
+                Eigen::Vector3f covariancePos(0, 0, 0);
+                this->vertexList[fromVertex].setCovariancePosition(covariancePos);
+            }
+
+        }
+    }
+    Eigen::Vector3f covarianceOfPosEdge = this->vertexList[toVertex].getCovariancePosition();
+    float covarianceOfRotEdge = this->vertexList[toVertex].getCovarianceQuaternion();
+
+//    std::cout << "Rot diff " << (this->vertexList[fromVertex].getRotationVertex().inverse() *
+//                                 this->vertexList[toVertex].getRotationVertex()).matrix() << std::endl;
+//    std::cout << "Pos diff " << this->vertexList[fromVertex].getRotationVertex().inverse() *
+//                                this->vertexList[toVertex].getPositionVertex() -
+//                                this->vertexList[fromVertex].getRotationVertex().inverse() *
+//                                this->vertexList[fromVertex].getPositionVertex() << std::endl;
+
+    edge resultingEdge(fromVertex, toVertex, this->vertexList[fromVertex].getRotationVertex().inverse() *
+                                             this->vertexList[toVertex].getPositionVertex() -
+                                             this->vertexList[fromVertex].getRotationVertex().inverse() *
+                                             this->vertexList[fromVertex].getPositionVertex(),
+                       this->vertexList[fromVertex].getRotationVertex().inverse() *
+                       this->vertexList[toVertex].getRotationVertex(), covarianceOfPosEdge, covarianceOfRotEdge,
+                       degreeOfFreedom);
+    return resultingEdge;
+
+}
+
+void graphSlamSaveStructure::removeRowColumn(Eigen::SparseMatrix<float> &matrix,
+                                             int rowToRemove) const {// it is assumed that the row means the state(dim 3 or 6)
+    //std::cout << "currentMatrix: \n" << matrix.toDense() << std::endl;
+    const int newSizeMatrix = (int) matrix.rows() - this->degreeOfFreedom;
+    Eigen::PermutationMatrix<Eigen::Dynamic, Eigen::Dynamic> perm(matrix.rows());
+    perm.setIdentity();
+    //std::cout << "Permutation before: \n" << perm.toDenseMatrix() << std::endl;
+    for (int k = 0; k < this->degreeOfFreedom; k++) {
+        for (int i = rowToRemove * this->degreeOfFreedom; i < matrix.rows() - 1; i++) {
+            std::swap(perm.indices()[i], perm.indices()[i + 1]);
+        }
+    }
+    perm = perm.transpose();
+    //std::cout << "Permutation after: \n" << perm.toDenseMatrix() << std::endl;
+    matrix = matrix.twistedBy(perm);
+    matrix = matrix.block(0, 0, newSizeMatrix, newSizeMatrix);
+
+    //std::cout << "After removing: \n" << matrix.toDense() << std::endl;
+
+}
+
+Eigen::MatrixXf graphSlamSaveStructure::transformStateDiffToAddVector(std::vector<vertex> &stateBeforeOptimization,
+                                                                      std::vector<vertex> &stateAfterOptimization) const {
+
+    Eigen::MatrixXf vectorToAdd(this->numberOfVertex * this->degreeOfFreedom, 1);
+    for (int i = 0; i < this->lookUpTableCell.size(); i++) {
+        Eigen::Vector3f posdiff =
+                stateAfterOptimization[i].getPositionVertex() - stateBeforeOptimization[i].getPositionVertex();
+        float angleDiff = stateAfterOptimization[i].getRotationVertex().toRotationMatrix().eulerAngles(0, 1, 2)[2] -
+                          stateBeforeOptimization[i].getRotationVertex().toRotationMatrix().eulerAngles(0, 1, 2)[2];
+        for (int j : this->lookUpTableCell[i]) {
+            vectorToAdd(j * this->degreeOfFreedom + 0, 0) = posdiff[0];
+            vectorToAdd(j * this->degreeOfFreedom + 1, 0) = posdiff[1];
+            vectorToAdd(j * this->degreeOfFreedom + 2, 0) = angleDiff;
+        }
+    }
+    return vectorToAdd;
+}
+
+graphSlamSaveStructure graphSlamSaveStructure::getSubGraph() {
+    return *this->hierachicalGraph;
+}
+
+int graphSlamSaveStructure::getCellOfVertexIndex(int vertexIndex) {
+    for (int i = 0; i < this->lookUpTableCell.size(); i++) {
+        for (int j = 0; j < this->lookUpTableCell[i].size(); j++) {
+            if (this->lookUpTableCell[i][j] == vertexIndex) {
+                return i;// return the index of cell,
+            }
+        }
+    }
+    std::cout << "could not found the vertex index you are looking for" << std::endl;
+    exit(-1);
+}
+
+bool graphSlamSaveStructure::checkIfElementsOfVectorAreEqual(std::vector<int> &i0,
+                                                             std::vector<int> &i1) {// check if an element of i0 is equal to element of i1
+
+    for (int &element : i1) {
+        if (std::find(i0.begin(), i0.end(),
+                      element) != i0.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<int> graphSlamSaveStructure::joinTwoLists(std::vector<int> &i0,
+                                                      std::vector<int> &i1) {//create list containing elements of i0 and i1 joined = [i0,i1]
+    std::vector<int> iJoined;
+    iJoined.reserve(i0.size() + i1.size()); // preallocate memory
+    iJoined.insert(iJoined.end(), i0.begin(), i0.end());
+    iJoined.insert(iJoined.end(), i1.begin(), i1.end());
+    return iJoined;
+}
+
+bool graphSlamSaveStructure::createSubGraphBetweenCell(int vertexIndexFrom, int vertexIndexTo,
+                                                       graphSlamSaveStructure &currentSubGraph) {
+    std::vector<int> vertexIndicesOfICell = this->lookUpTableCell[vertexIndexFrom];
+    std::vector<int> vertexIndicesOfJCell = this->lookUpTableCell[vertexIndexTo];
+    std::vector<edge> listOfContainingEdges;
+    std::vector<int> listOfConnectedVertexes;
+    getListofConnectedVertexAndEdges(vertexIndicesOfICell, listOfContainingEdges,
+                                     listOfConnectedVertexes);//go threw cell I and save edges connected to it
+    bool containingConnection = checkIfElementsOfVectorAreEqual(vertexIndicesOfJCell,
+                                                                listOfConnectedVertexes);//check if overlap exists
+    if (containingConnection) {
+        //create graph from cell i to cell j
+        //graphSlamSaveStructure currentSubGraph(this->hierachicalGraph->degreeOfFreedom);
+        for (int k = 0; k < this->lookUpTableCell[vertexIndexFrom].size(); k++) {//add vertices of cell i
+            vertex tmpVertex = this->vertexList[this->lookUpTableCell[vertexIndexFrom][k]];
+            currentSubGraph.addVertex(k, tmpVertex.getPositionVertex(), tmpVertex.getRotationVertex(),
+                                      tmpVertex.getCovariancePosition(), tmpVertex.getCovarianceQuaternion());
+        }
+
+        for (int k = 0; k < this->lookUpTableCell[vertexIndexTo].size(); k++) {//add vertices of cell j
+            vertex tmpVertex = this->vertexList[this->lookUpTableCell[vertexIndexTo][k]];
+            currentSubGraph.addVertex(k + (int) this->lookUpTableCell[vertexIndexFrom].size(),
+                                      tmpVertex.getPositionVertex(),
+                                      tmpVertex.getRotationVertex(),
+                                      tmpVertex.getCovariancePosition(), tmpVertex.getCovarianceQuaternion());
+        }
+        //get all containing elements of the joined sub graph
+        std::vector<int> vertexIndexOfJoinedGraph = joinTwoLists(vertexIndicesOfICell, vertexIndicesOfJCell);
+        // look at each edge to be contained at these vertex
+        for (auto &currentEdge : this->edgeList) {
+
+            auto itFromVertex = std::find(vertexIndexOfJoinedGraph.begin(), vertexIndexOfJoinedGraph.end(),
+                                          currentEdge.getFromVertex());
+            auto itToVertex = std::find(vertexIndexOfJoinedGraph.begin(), vertexIndexOfJoinedGraph.end(),
+                                        currentEdge.getToVertex());
+
+            if (itFromVertex != vertexIndexOfJoinedGraph.end() &&
+                itToVertex != vertexIndexOfJoinedGraph.end()) {
+                int indexToVertex = std::distance(vertexIndexOfJoinedGraph.begin(), itToVertex);
+                int indexFromVertex = std::distance(vertexIndexOfJoinedGraph.begin(), itFromVertex);
+                currentSubGraph.addEdge(indexFromVertex, indexToVertex,
+                                        currentEdge.getPositionDifference(),
+                                        currentEdge.getRotationDifference(),
+                                        currentEdge.getCovariancePosition(),
+                                        currentEdge.getCovarianceQuaternion());
+
+            }
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
 

@@ -250,3 +250,9 @@ target_link_libraries(graph_optimization_testing ${PCL_LIBRARIES} ${catkin_LIBRA
 
 add_executable(firstCompleteSlamTest src/firstCompleteSlamTest.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp)
 target_link_libraries(firstCompleteSlamTest ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(generate_dataset_gazebo src/generateDatasetGazebo.cpp)
+target_link_libraries(generate_dataset_gazebo ${catkin_LIBRARIES})
+
+add_executable(slamLabyrinth src/slamOfLabyrinth01.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp)
+target_link_libraries(slamLabyrinth ${PCL_LIBRARIES} ${catkin_LIBRARIES})
