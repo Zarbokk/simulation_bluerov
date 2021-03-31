@@ -98,6 +98,19 @@ private:
     Eigen::Quaternionf rotationDifference;
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud;//measurement
     int typeOfEdge;// 0=pointCloud    %%%%%%%%%   1 = integratedPosDiff
+    float timeStamp;
+public:
+    bool isHasPointCloud() const;
+
+    int getTypeOfEdge() const;
+
+    void setTypeOfEdge(int typeOfEdge);
+
+    float getTimeStamp() const;
+
+    void setTimeStamp(float timeStamp);
+
+    Eigen::Matrix4f getTransformation();
 };
 
 

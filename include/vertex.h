@@ -61,6 +61,16 @@ public:
 
     void setCovarianceQuaternion(float covarianceQuaternion);
 
+    Eigen::Matrix4f getTransformation();
+
+    int getTypeOfVertex() const;
+
+    void setTypeOfVertex(int typeOfVertex);
+
+    float getTimeStamp() const;
+
+    void setTimeStamp(float timeStamp);
+
 private:
     int vertexNumber;
     Eigen::Vector3f positionVertex;// position w.r.t. Initiial Starting Position
@@ -69,6 +79,8 @@ private:
     float covarianceQuaternion;
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud;//measurement by edge from this vertex to previous vertex
     int typeOfVertex;// 0=pointCloud    %%%%%%%%%   1 = integratedPosDiff
+
+    float timeStamp;
 };
 
 

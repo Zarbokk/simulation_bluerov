@@ -74,6 +74,8 @@ public:
 
     bool createSubGraphBetweenCell(int vertexIndexFrom, int vertexIndexTo, graphSlamSaveStructure &currentSubGraph);
 
+    void calculateCovarianceInCloseProximity();// calculate the subgraph for the last hierachical graph, and connected cells. then calculate covariances.
+
     static const int POINT_CLOUD_USAGE = 0;
     static const int INTEGRATED_POS_USAGE = 1;
 private:
@@ -91,6 +93,8 @@ private:
     static bool checkIfElementsOfVectorAreEqual(std::vector<int> &i0, std::vector<int> &i1);
 
     static std::vector<int> joinTwoLists(std::vector<int> &i0, std::vector<int> &i1);
+
+    bool checkIfDirectConnectionExists(int vertexIndex0,int vertexIndex1);
 
     int degreeOfFreedom;//3 for [x y alpha] or 6 for [x y z alpha beta gamma]
     int numberOfEdges;

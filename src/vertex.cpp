@@ -52,3 +52,30 @@ void vertex::setCovarianceQuaternion(float covarianceQuaternion) {
     vertex::covarianceQuaternion = covarianceQuaternion;
 }
 
+Eigen::Matrix4f vertex::getTransformation(){
+    Eigen::Matrix4f transformation;
+
+    transformation << 1, 0, 0, this->positionVertex.x(),
+            0, 1, 0, this->positionVertex.y(),
+            0, 0, 1, this->positionVertex.z(),
+            0, 0, 0, 1;//transformation missing currently
+    Eigen::Matrix3f m(this->rotationVertex.toRotationMatrix());
+    transformation.block<3, 3>(0, 0) = m;
+    return transformation;
+}
+
+int vertex::getTypeOfVertex() const {
+    return typeOfVertex;
+}
+
+void vertex::setTypeOfVertex(int typeOfVertex) {// 0=pointCloud    %%%%%%%%%   1 = integratedPosDiff
+    vertex::typeOfVertex = typeOfVertex;
+}
+
+float vertex::getTimeStamp() const {
+    return timeStamp;
+}
+
+void vertex::setTimeStamp(float timeStamp) {
+    vertex::timeStamp = timeStamp;
+}

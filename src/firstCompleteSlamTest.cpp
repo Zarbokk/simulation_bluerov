@@ -11,7 +11,7 @@
 
 #include <random>
 
-double scalingAngle = 0.05;
+double scalingAngle = 0.3;
 double scalingAllg = 0.25;
 double sigmaScaling = 3;
 
@@ -123,7 +123,7 @@ bool detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass
                     graphSaved.getVertexList().back().getPointCloud(),
                     fitnessScore);
             fitnessScore = scalingAllg * sqrt(fitnessScore);
-            if (fitnessScore < 0.1) {
+            if (fitnessScore < scalingAllg*4*0.1) {
                 std::cout << "Found Loop Closure with fitnessScore: " << fitnessScore << std::endl;
                 if (fitnessScore < 0.01) {
                     std::cout << "FitnessScore Very Low: " << fitnessScore << std::endl;
@@ -254,6 +254,7 @@ main(int argc, char **argv) {
 
 
         graphSaved.optimizeGraphWithSlamTopDown(false);
+        graphSaved.calculateCovarianceInCloseProximity();//very expensive i guess
         //std::vector<vertex> stateAfterOptimization = hierachicalGraph.getVertexList();
         //Eigen::MatrixXf vectorToAdd = graphSaved.transformStateDiffToAddVector(stateBeforeOptimization,
         //                                                                       stateAfterOptimization, lookUpTable);

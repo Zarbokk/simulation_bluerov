@@ -79,3 +79,35 @@ bool edge::getHasPointCloud() const {
 void edge::setHasPointCloud(bool hasPointCloud) {
     edge::hasPointCloud = hasPointCloud;
 }
+
+bool edge::isHasPointCloud() const {
+    return hasPointCloud;
+}
+
+int edge::getTypeOfEdge() const {
+    return typeOfEdge;
+}
+
+void edge::setTypeOfEdge(int typeOfEdge) {// 0=pointCloud    %%%%%%%%%   1 = integratedPosDiff
+    edge::typeOfEdge = typeOfEdge;
+}
+
+float edge::getTimeStamp() const {
+    return timeStamp;
+}
+
+void edge::setTimeStamp(float timeStamp) {
+    edge::timeStamp = timeStamp;
+}
+
+Eigen::Matrix4f edge::getTransformation(){
+    Eigen::Matrix4f transformation;
+
+    transformation << 1, 0, 0, this->positionDifference.x(),
+            0, 1, 0, this->positionDifference.y(),
+            0, 0, 1, this->positionDifference.z(),
+            0, 0, 0, 1;//transformation missing currently
+    Eigen::Matrix3f m(this->rotationDifference.toRotationMatrix());
+    transformation.block<3, 3>(0, 0) = m;
+    return transformation;
+}

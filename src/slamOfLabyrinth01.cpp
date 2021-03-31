@@ -2,85 +2,12 @@
 // Created by tim on 26.03.21.
 //
 
-#include <scanRegistrationClass.h>
-//#include <ros/ros.h>
-//#include "sensor_msgs/PointCloud2.h"
-//#include "nav_msgs/Path.h"
-//#include "geometry_msgs/PoseStamped.h"
-//#include <pcl_conversions/pcl_conversions.h>
-//#include <visualization_msgs/Marker.h>
-//#include <visualization_msgs/MarkerArray.h>
-#include <graphSlamSaveStructure.h>
 #include <slamToolsRos.h>
-#include <random>
 
 double scalingAngle = 0.1;
 double scalingAllg = 0.25;
-double sigmaScaling = 3;
-
-
-bool detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass registrationClass) {
-    Eigen::Vector3f estimatedPosLastPoint = graphSaved.getVertexList().back().getPositionVertex();
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloudLast = graphSaved.getVertexList().back().getPointCloud();
-    Eigen::ArrayXXf dist;
-    dist.resize(graphSaved.getVertexList().size() - 1, 1);
-    for (int s = 0; s < graphSaved.getVertexList().size() - 1; s++) {
-        //dist.row(s) = (graphSaved.getVertexList()[s].getPositionVertex() - estimatedPosLastPoint).norm();
-        dist.row(s) = pow((estimatedPosLastPoint.x() - graphSaved.getVertexList()[s].getPositionVertex().x()), 2) /
-                      pow((sigmaScaling * graphSaved.getVertexList()[s].getCovariancePosition().x()), 2) +
-                      pow((estimatedPosLastPoint.y() - graphSaved.getVertexList()[s].getPositionVertex().y()), 2) /
-                      pow((sigmaScaling * graphSaved.getVertexList()[s].getCovariancePosition().y()), 2);
-    }
-    const int ignoreLastNLoopClosures = 2;
-    std::vector<int> has2beChecked;
-    if (dist.size() > ignoreLastNLoopClosures) {
-        for (int i = 0; i < dist.size() - ignoreLastNLoopClosures; i++) {
-            if (dist(i, 0) < 1) {
-                has2beChecked.push_back(i);
-            }
-        }
-
-        std::cout << "Test loop closure for :" << has2beChecked.size() << std::endl;
-        std::shuffle(has2beChecked.begin(), has2beChecked.end(), std::mt19937(std::random_device()()));
-//        while(has2beChecked.size()>3){
-//            has2beChecked.pop_back();//just check max 3
-//        }
-        int loopclosureNumber = 0;
-        bool foundLoopClosure = false;
-        for (const auto &has2beCheckedElemenet : has2beChecked) {
-            double fitnessScore;
-            Eigen::Matrix4f currentTransformation;
-            currentTransformation = registrationClass.generalizedIcpRegistrationSimple(
-                    graphSaved.getVertexList()[has2beCheckedElemenet].getPointCloud(),
-                    graphSaved.getVertexList().back().getPointCloud(),
-                    fitnessScore);
-            fitnessScore = scalingAllg * sqrt(fitnessScore);
-            if (fitnessScore < 0.1) {
-                std::cout << "Found Loop Closure with fitnessScore: " << fitnessScore << std::endl;
-                if (fitnessScore < 0.01) {
-                    std::cout << "FitnessScore Very Low: " << fitnessScore << std::endl;
-                    fitnessScore = 0.01;
-                }
-                Eigen::Vector3f currentPosDiff;
-                Eigen::Quaternionf currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
-                currentPosDiff.x() = currentTransformation.inverse()(0, 3);
-                currentPosDiff.y() = currentTransformation.inverse()(1, 3);
-                currentPosDiff.z() = 0;
-                Eigen::Vector3f positionCovariance(fitnessScore, fitnessScore, 0);
-                graphSaved.addEdge(has2beCheckedElemenet, (int) graphSaved.getVertexList().size() - 1, currentPosDiff,
-                                   currentRotDiff, positionCovariance, (float) (0.1 * fitnessScore));
-                foundLoopClosure = true;
-                loopclosureNumber++;
-                if (loopclosureNumber > 1) { break; }// break if multiple loop closures are found
-            }
-        }
-        if (foundLoopClosure) {
-            return true;
-        }
-
-    }
-    return false;
-}
+float sigmaScaling = 3;
+float noiseVelocityIntigration = 0.1;
 
 void loadCSVFiles(std::vector<std::vector<measurement>> &groundTruthSorted,
                   std::vector<std::vector<measurement>> &angularVelocitySorted,
@@ -125,11 +52,13 @@ main(int argc, char **argv) {
     ros::init(argc, argv, "slamLabyrinth01");
     ros::start();
     ros::NodeHandle n_;
-    ros::Publisher publisherFirstScan, publisherKeyFrameClouds, publisherPathOverTime, publisherMarkerArray;
+    ros::Publisher publisherFirstScan, publisherKeyFrameClouds, publisherPathOverTime, publisherMarkerArray,publisherPathOverTimeGT;
     publisherFirstScan = n_.advertise<sensor_msgs::PointCloud2>("first_scan", 10);
     publisherKeyFrameClouds = n_.advertise<sensor_msgs::PointCloud2>("currentScanTransformed", 10);
     publisherPathOverTime = n_.advertise<nav_msgs::Path>("positionOverTime", 10);
+    publisherPathOverTimeGT = n_.advertise<nav_msgs::Path>("positionOverTimeGT", 10);
     publisherMarkerArray = n_.advertise<visualization_msgs::MarkerArray>("covariance", 10);
+    scanRegistrationClass registrationClass = scanRegistrationClass();
 
     //slamToolsRos toolsObject;
     std::vector<std::vector<measurement>> groundTruthSorted;
@@ -137,30 +66,124 @@ main(int argc, char **argv) {
     std::vector<std::vector<measurement>> bodyVelocitySorted;
     loadCSVFiles(groundTruthSorted, angularVelocitySorted, bodyVelocitySorted, folderExperiment);
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloudFirstScan(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::io::loadPCDFile("/home/tim/DataForTests/"+folderExperiment+"/after_voxel_1.pcd",
-                         *cloudFirstScan);
-    //correct cloud Scan
+    pcl::PointCloud<pcl::PointXYZ>::Ptr currentScan(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr lastScan(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr Final(
+            new pcl::PointCloud<pcl::PointXYZ>);//@TODOoutput of matching process should be deleted later
+    pcl::io::loadPCDFile("/home/tim/DataForTests/" + folderExperiment + "/after_voxel_1.pcd",
+                         *currentScan);
+
+    //Matrices
+    Eigen::Matrix4f currentTransformation;
 
 
-    graphSlamSaveStructure graphSaved = initializeGraph(cloudFirstScan);
+    std::vector<vertex> posDiffOverTimeVertices;
+    std::vector<edge> posDiffOverTimeEdges;
+
+    float lastTimeKeyFrame = groundTruthSorted[0][0].timeStamp;//280
+    float timeCurrentGroundTruth = groundTruthSorted[1][0].timeStamp;//290
+    double fitnessScore;
+
+
+    //graphSlamSaveStructure graphSaved = initializeGraph(currentScan);
     sensor_msgs::PointCloud2 firstScanMsg;
-    pcl::toROSMsg(*cloudFirstScan, firstScanMsg);
+    pcl::toROSMsg(*currentScan, firstScanMsg);
     firstScanMsg.header.frame_id = "map_ned";
-    float lastTimeKeyFrame = groundTruthSorted[1][0].timeStamp;
+    //add first vertex
+    graphSlamSaveStructure graphSaved(3);
+    graphSaved.addVertex(0, Eigen::Vector3f(0, 0, 0), Eigen::Quaternionf(1, 0, 0, 0), Eigen::Vector3f(0, 0, 0), 0);
+
+    //first step
+    slamToolsRos::calculatePositionOverTime(angularVelocitySorted[1], bodyVelocitySorted[1],
+                                            posDiffOverTimeEdges, lastTimeKeyFrame, timeCurrentGroundTruth);
+
+
+    //add vertex and so on to graphSaved
+    for (auto &currentEdge : posDiffOverTimeEdges) {
+        vertex lastVertex = graphSaved.getVertexList().back();
+        Eigen::Matrix4f tmpTransformation = lastVertex.getTransformation();
+        tmpTransformation = tmpTransformation * currentEdge.getTransformation();
+        Eigen::Vector3f pos = tmpTransformation.block<3, 1>(0, 3);
+        Eigen::Matrix3f rotM = tmpTransformation.block<3, 3>(0, 0);
+        Eigen::Quaternionf rot(rotM);
+
+        graphSaved.addVertex(lastVertex.getVertexNumber() + 1, pos, rot, lastVertex.getCovariancePosition(),
+                             lastVertex.getCovarianceQuaternion());
+        graphSaved.addEdge(lastVertex.getVertexNumber(), lastVertex.getVertexNumber()+1,
+                           currentEdge.getPositionDifference(), currentEdge.getRotationDifference(),
+                           Eigen::Vector3f(noiseVelocityIntigration, noiseVelocityIntigration, 0),
+                           scalingAngle*noiseVelocityIntigration);
+        graphSaved.getVertexList().back().setTypeOfVertex(
+                graphSlamSaveStructure::INTEGRATED_POS_USAGE);//1 for vertex defined by dead reckoning
+    }
+
+    slamToolsRos::correctPointCloudByPosition(currentScan, posDiffOverTimeEdges, lastTimeKeyFrame);
+
+    graphSaved.getVertexList().back().setPointCloud(currentScan);
+    graphSaved.getVertexList().back().setTypeOfVertex(graphSlamSaveStructure::POINT_CLOUD_USAGE);
+
+    //initialize hierachical slam
+    std::deque<float> subgraphs{1, 3};
+    graphSaved.initiallizeSubGraphs(subgraphs);
+
     for (int currentKeyFrame = 2; currentKeyFrame < groundTruthSorted.size(); currentKeyFrame++) {
-        float timeCurrentGroundTruth = groundTruthSorted[currentKeyFrame][0].timeStamp;
-        //forward calculate pose(relative)(with velocities) add edges+vertexes
-        for(int i = 0; i<bodyVelocitySorted[currentKeyFrame].size();i++){//calculate that for every second
-
-        }
-
-        for(int i = 0; i<angularVelocitySorted[currentKeyFrame].size();i++){//calculate that for every second
-
-        }
-        //re-map point cloud
-        //make scan matching with last scan
+        *lastScan = *currentScan;
         lastTimeKeyFrame = timeCurrentGroundTruth;
+        timeCurrentGroundTruth = groundTruthSorted[currentKeyFrame][0].timeStamp;
+
+        pcl::io::loadPCDFile(
+                "/home/tim/DataForTests/" + folderExperiment + "/after_voxel_" + std::to_string(currentKeyFrame) +
+                ".pcd",
+                *currentScan);
+        //forward calculate pose(relative)(with velocities) add edges+vertexes
+        slamToolsRos::calculatePositionOverTime(angularVelocitySorted[currentKeyFrame],
+                                                bodyVelocitySorted[currentKeyFrame],
+                                                posDiffOverTimeEdges, lastTimeKeyFrame, timeCurrentGroundTruth);
+        //sort in posDiffOverTime and calculate vertices to be added
+        for (auto &currentEdge : posDiffOverTimeEdges) {
+            vertex lastVertex = graphSaved.getVertexList().back();
+            Eigen::Matrix4f tmpTransformation = lastVertex.getTransformation();
+            tmpTransformation = tmpTransformation * currentEdge.getTransformation();
+            Eigen::Vector3f pos = tmpTransformation.block<3, 1>(0, 3);
+            Eigen::Matrix3f rotM = tmpTransformation.block<3, 3>(0, 0);
+            Eigen::Quaternionf rot(rotM);
+            graphSaved.addVertex(lastVertex.getVertexNumber() + 1, pos, rot, lastVertex.getCovariancePosition(),
+                                 lastVertex.getCovarianceQuaternion());
+            graphSaved.addEdge(lastVertex.getVertexNumber(), lastVertex.getVertexNumber()+1,
+                               currentEdge.getPositionDifference(), currentEdge.getRotationDifference(),
+                               Eigen::Vector3f(noiseVelocityIntigration, noiseVelocityIntigration, 0),
+                               scalingAngle*noiseVelocityIntigration);
+            graphSaved.getVertexList().back().setTypeOfVertex(
+                    graphSlamSaveStructure::INTEGRATED_POS_USAGE);//1 for vertex defined by dead reckoning
+        }
+
+        //re-map point cloud
+        slamToolsRos::correctPointCloudByPosition(currentScan, posDiffOverTimeEdges,
+                                                  lastTimeKeyFrame);//has to be done with edges
+
+        //make scan matching with last scan
+        currentTransformation = registrationClass.generalizedIcpRegistration(lastScan, currentScan, Final,
+                                                                             fitnessScore);
+        std::cout << "current Fitness Score: "<<sqrt(fitnessScore)<<std::endl;
+        //add edge for currentTransformation
+        Eigen::Quaternionf qTMP(currentTransformation.block<3, 3>(0, 0));
+        graphSaved.addEdge(graphSaved.getVertexList().size() - 10, graphSaved.getVertexList().size() - 1,
+                           currentTransformation.block<3, 1>(0, 3), qTMP,
+                           Eigen::Vector3f(sqrt(fitnessScore), sqrt(fitnessScore), 0),
+                           (float) sqrt(fitnessScore));//@TODO still not sure about size
+
+        //add pointCloud to Vertex and change type
+        graphSaved.getVertexList().back().setPointCloud(currentScan);
+        graphSaved.getVertexList().back().setTypeOfVertex(graphSlamSaveStructure::POINT_CLOUD_USAGE);
+
+        //watch for loop closure
+        //slamToolsRos::detectLoopClosure(graphSaved, registrationClass, sigmaScaling, scalingAllg);
+        //optimization of graph
+        graphSaved.optimizeGraphWithSlamTopDown(false);
+        //graphSaved.calculateCovarianceInCloseProximity();
+        //visualization of graph in ros
+        slamToolsRos::visualizeCurrentGraph(graphSaved, publisherPathOverTime, publisherKeyFrameClouds,
+                                            publisherMarkerArray, sigmaScaling,publisherPathOverTimeGT,groundTruthSorted);
     }
 
     return (0);

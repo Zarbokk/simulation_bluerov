@@ -13,11 +13,13 @@
 #include <pcl/registration/gicp.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/common/projection_matrix.h>
+#include <scanRegistrationClass.h>
+#include <random>
 
 #ifndef SIMULATION_BLUEROV_SLAMTOOLSROS_H
 #define SIMULATION_BLUEROV_SLAMTOOLSROS_H
 
-struct measurement{
+struct measurement {
     int keyframe;
     float x;
     float y;
@@ -30,13 +32,26 @@ class slamToolsRos {
 public:
     static void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &publisherPath,
                                       ros::Publisher &publisherCloud, ros::Publisher &publisherMarkerArray,
-                                      float sigmaScaling);
+                                      float sigmaScaling, ros::Publisher &publisherPathGT,
+                                      std::vector<std::vector<measurement>> &groundTruthSorted);
 
-    static std::vector<measurement> parseCSVFile(std::istream&   stream);//this is first line description then keyframe,x,y,z,timestamp
+    static std::vector<measurement>
+    parseCSVFile(std::istream &stream);//this is first line description then keyframe,x,y,z,timestamp
 
     static std::vector<std::vector<measurement>> sortToKeyframe(std::vector<measurement> &input);
 
-    static void correctPointCloudByPosition(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudScan);
+    static void correctPointCloudByPosition(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudScan, std::vector<edge> &posDiff,
+                                            float timestepBeginning);
+
+    static void
+    calculatePositionOverTime(std::vector<measurement> &angularVelocityList, std::vector<measurement> &bodyVelocityList,
+                              std::vector<edge> &posOverTimeEdge,
+                              float lastTimeStamp, float currentTimeStamp);
+
+    static bool detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass &registrationClass,
+                                  double sigmaScaling, double scalingAllg);
+
+    static std::vector<float> linspace(float start_in, float end_in, int num_in);
 };
 
 
