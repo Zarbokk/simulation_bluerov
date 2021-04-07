@@ -7,7 +7,7 @@
 Eigen::Matrix4f scanRegistrationClass::generalizedIcpRegistration(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
                                                                   const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
                                                        pcl::PointCloud<pcl::PointXYZ>::Ptr &Final,
-                                                       double &fitnessScore){
+                                                       double &fitnessScore,Eigen::Matrix4f &initialGuessTransformation){
 
     pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ,pcl::PointXYZ> gicp;
 
@@ -17,14 +17,10 @@ Eigen::Matrix4f scanRegistrationClass::generalizedIcpRegistration(const pcl::Poi
     //gicp.setTargetCovariances(target_covariances);
     gicp.setMaxCorrespondenceDistance(5);
     //gicp.setMaximumIterations(1);
-    Eigen::Matrix4f guess;
-    guess << 1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1;
 
 
-    gicp.align(*Final,guess);
+
+    gicp.align(*Final,initialGuessTransformation);
     //std::cout << "has converged:" << gicp.hasConverged() << " score: " <<
     //          gicp.getFitnessScore() << std::endl;
     fitnessScore = gicp.getFitnessScore();
@@ -34,9 +30,14 @@ Eigen::Matrix4f scanRegistrationClass::generalizedIcpRegistration(const pcl::Poi
 Eigen::Matrix4f scanRegistrationClass::generalizedIcpRegistrationSimple(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
                                                                   const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
                                                                   double &fitnessScore){
+    Eigen::Matrix4f guess;
+    guess << 1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1;
     pcl::PointCloud<pcl::PointXYZ>::Ptr Final(new pcl::PointCloud<pcl::PointXYZ>);
     return scanRegistrationClass::generalizedIcpRegistration(cloudFirstScan, cloudSecondScan, Final,
-                                           fitnessScore);
+                                           fitnessScore,guess);
 }
 
 

@@ -25,18 +25,18 @@ public:
 
     void addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
                  const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
-                 const float covarianceQuaternion);
+                 const float covarianceQuaternion,int typeOfEdge);
 
     void addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
                  const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
-                 const float covarianceQuaternion, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
+                 const float covarianceQuaternion, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,int typeOfEdge);
 
     void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, const Eigen::Quaternionf &rotationVertex,
-                   const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion);
+                   const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion,int typeOfVertex);
 
     void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, const Eigen::Quaternionf &rotationVertex,
                    const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion,
-                   pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
+                   pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,int typeOfVertex);
 
     Eigen::SparseMatrix<float> getInformationMatrix();
 
@@ -53,7 +53,7 @@ public:
 
     void addToState(Eigen::MatrixXf &vectorToAdd);//from optimization
 
-    vertex getVertexByIndex(int i);
+    vertex* getVertexByIndex(int i);
 
     std::vector<vertex> getVertexList();
 

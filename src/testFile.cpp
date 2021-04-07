@@ -38,8 +38,7 @@ graphSlamSaveStructure initializeGraph(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud
     Eigen::Quaternionf firstRotation(rotationVectorFirst.toRotationMatrix());
     Eigen::Vector3f covariancePos(0, 0, 0);
     graphSaved.addVertex(0, firstPosition, firstRotation, covariancePos, 0,
-                         cloudFirstScan,
-                         graphSlamSaveStructure::INTEGRATED_POS_USAGE);//the first vertex sets 0 of the coordinate system
+                         cloudFirstScan);//the first vertex sets 0 of the coordinate system
 
     std::deque<float> subgraphs{1, 3};
     graphSaved.initiallizeSubGraphs(subgraphs);
@@ -53,9 +52,10 @@ main(int argc, char **argv) {
     ros::init(argc, argv, "slamLabyrinth01");
     ros::start();
     ros::NodeHandle n_;
-    ros::Publisher publisherFirstScan, publisherKeyFrameClouds, publisherPathOverTime, publisherMarkerArray, publisherPathOverTimeGT;
-    publisherFirstScan = n_.advertise<sensor_msgs::PointCloud2>("first_scan", 10);
-    publisherKeyFrameClouds = n_.advertise<sensor_msgs::PointCloud2>("currentScanTransformed", 10);
+    ros::Publisher publisherAlignedScan, publisherToScan, publisherFromScan, publisherPathOverTime, publisherMarkerArray, publisherPathOverTimeGT;
+    publisherFromScan = n_.advertise<sensor_msgs::PointCloud2>("fromScan", 10);
+    publisherToScan = n_.advertise<sensor_msgs::PointCloud2>("toScan", 10);
+    publisherAlignedScan = n_.advertise<sensor_msgs::PointCloud2>("alignedScan", 10);
     publisherPathOverTime = n_.advertise<nav_msgs::Path>("positionOverTime", 10);
     publisherPathOverTimeGT = n_.advertise<nav_msgs::Path>("positionOverTimeGT", 10);
     publisherMarkerArray = n_.advertise<visualization_msgs::MarkerArray>("covariance", 10);
@@ -75,7 +75,7 @@ main(int argc, char **argv) {
                          *currentScan);
 
     //Matrices
-    Eigen::Matrix4f currentTransformation;
+    Eigen::Matrix4f currentTransformation, currentTransformation1, currentTransformation2;
 
 
     std::vector<vertex> posDiffOverTimeVertices;
@@ -87,13 +87,10 @@ main(int argc, char **argv) {
 
 
     //graphSlamSaveStructure graphSaved = initializeGraph(currentScan);
-    sensor_msgs::PointCloud2 firstScanMsg;
-    pcl::toROSMsg(*currentScan, firstScanMsg);
-    firstScanMsg.header.frame_id = "map_ned";
+
     //add first vertex
     graphSlamSaveStructure graphSaved(3);
-    graphSaved.addVertex(0, Eigen::Vector3f(0, 0, 0), Eigen::Quaternionf(1, 0, 0, 0),
-                         Eigen::Vector3f(0, 0, 0), 0, graphSlamSaveStructure::INTEGRATED_POS_USAGE);
+    graphSaved.addVertex(0, Eigen::Vector3f(0, 0, 0), Eigen::Quaternionf(1, 0, 0, 0), Eigen::Vector3f(0, 0, 0), 0);
 
     //first step
     slamToolsRos::calculatePositionOverTime(angularVelocitySorted[1], bodyVelocitySorted[1],
@@ -110,13 +107,13 @@ main(int argc, char **argv) {
         Eigen::Quaternionf rot(rotM);
 
         graphSaved.addVertex(lastVertex.getVertexNumber() + 1, pos, rot, lastVertex.getCovariancePosition(),
-                             lastVertex.getCovarianceQuaternion(),graphSlamSaveStructure::INTEGRATED_POS_USAGE);
+                             lastVertex.getCovarianceQuaternion());
         graphSaved.addEdge(lastVertex.getVertexNumber(), lastVertex.getVertexNumber() + 1,
                            currentEdge.getPositionDifference(), currentEdge.getRotationDifference(),
                            Eigen::Vector3f(noiseVelocityIntigration, noiseVelocityIntigration, 0),
-                           scalingAngle * noiseVelocityIntigration,graphSlamSaveStructure::INTEGRATED_POS_USAGE);
-//        graphSaved.getVertexList().back().setTypeOfVertex(
-//                graphSlamSaveStructure::INTEGRATED_POS_USAGE);//1 for vertex defined by dead reckoning
+                           scalingAngle * noiseVelocityIntigration);
+        graphSaved.getVertexList().back().setTypeOfVertex(
+                graphSlamSaveStructure::INTEGRATED_POS_USAGE);//1 for vertex defined by dead reckoning
     }
 
     slamToolsRos::correctPointCloudByPosition(currentScan, posDiffOverTimeEdges, lastTimeKeyFrame);
@@ -127,6 +124,7 @@ main(int argc, char **argv) {
     //initialize hierachical slam
     std::deque<float> subgraphs{1, 3};
     graphSaved.initiallizeSubGraphs(subgraphs);
+
 
     for (int currentKeyFrame = 2; currentKeyFrame < groundTruthSorted.size(); currentKeyFrame++) {
         *lastScan = *currentScan;
@@ -150,57 +148,77 @@ main(int argc, char **argv) {
             Eigen::Matrix3f rotM = tmpTransformation.block<3, 3>(0, 0);
             Eigen::Quaternionf rot(rotM);
             graphSaved.addVertex(lastVertex.getVertexNumber() + 1, pos, rot, lastVertex.getCovariancePosition(),
-                                 lastVertex.getCovarianceQuaternion(),graphSlamSaveStructure::INTEGRATED_POS_USAGE);
+                                 lastVertex.getCovarianceQuaternion());
             graphSaved.addEdge(lastVertex.getVertexNumber(), lastVertex.getVertexNumber() + 1,
                                currentEdge.getPositionDifference(), currentEdge.getRotationDifference(),
                                Eigen::Vector3f(noiseVelocityIntigration, noiseVelocityIntigration, 0),
-                               scalingAngle * noiseVelocityIntigration,graphSlamSaveStructure::INTEGRATED_POS_USAGE);
+                               scalingAngle * noiseVelocityIntigration);
+            graphSaved.getVertexList().back().setTypeOfVertex(
+                    graphSlamSaveStructure::INTEGRATED_POS_USAGE);//1 for vertex defined by dead reckoning
         }
 
         //re-map point cloud
         slamToolsRos::correctPointCloudByPosition(currentScan, posDiffOverTimeEdges,
                                                   lastTimeKeyFrame);//has to be done with edges
-        //Add current Scan to the graph additionally set point cloud usage true
-        graphSaved.getVertexList().back().setPointCloud(currentScan);
-        //graphSaved.getVertexList().back().setTypeOfVertex(graphSlamSaveStructure::POINT_CLOUD_USAGE);
-        graphSaved.getVertexByIndex(graphSaved.getVertexList().size()-1)->setTypeOfVertex(graphSlamSaveStructure::POINT_CLOUD_USAGE);
 
         //make scan matching with last scan
         Eigen::Matrix4f initialGuessTransformation =
-                graphSaved.getVertexList().back().getTransformation().inverse() *
-                graphSaved.getVertexList()[graphSaved.getVertexList().size() -
-                                           9].getTransformation();//@todo understand if 9 is correct
+                graphSaved.getVertexList().back().getTransformation().inverse()*
+                graphSaved.getVertexList()[graphSaved.getVertexList().size() - 9].getTransformation();//@todo understand if 9 is correct
+//        initialGuessTransformation << 1, 0, 0, 0,
+//                0, 1, 0, 0,
+//                0, 0, 1, 0,
+//                0, 0, 0, 1;
+
+
         currentTransformation = registrationClass.generalizedIcpRegistration(lastScan, currentScan, Final,
                                                                              fitnessScore, initialGuessTransformation);
         std::cout << "current Fitness Score: " << sqrt(fitnessScore) << std::endl;
+
+
+        sensor_msgs::PointCloud2 fromMsg;
+        pcl::toROSMsg(*lastScan, fromMsg);
+        fromMsg.header.frame_id = "map_ned";
+        publisherFromScan.publish(fromMsg);
+
+        sensor_msgs::PointCloud2 toMsg;
+        pcl::toROSMsg(*currentScan, toMsg);
+        toMsg.header.frame_id = "map_ned";
+        publisherToScan.publish(toMsg);
+
+        sensor_msgs::PointCloud2 alignedMsg;
+        pcl::toROSMsg(*Final, alignedMsg);
+        alignedMsg.header.frame_id = "map_ned";
+        publisherAlignedScan.publish(alignedMsg);
+
+
+
+
         //add edge for currentTransformation
         Eigen::Quaternionf qTMP(currentTransformation.block<3, 3>(0, 0));
         graphSaved.addEdge(graphSaved.getVertexList().size() - 10, graphSaved.getVertexList().size() - 1,
                            currentTransformation.block<3, 1>(0, 3), qTMP,
                            Eigen::Vector3f(sqrt(fitnessScore), sqrt(fitnessScore), 0),
-                           (float) sqrt(fitnessScore),graphSlamSaveStructure::POINT_CLOUD_USAGE);//@TODO still not sure about size
+                           (float) sqrt(fitnessScore),graphSlamSaveStructure::INTEGRATED_POS_USAGE);//@TODO still not sure about size
 
         //add pointCloud to Vertex and change type
         graphSaved.getVertexList().back().setPointCloud(currentScan);
         graphSaved.getVertexList().back().setTypeOfVertex(graphSlamSaveStructure::POINT_CLOUD_USAGE);
 
         //watch for loop closure
-        slamToolsRos::detectLoopClosure(graphSaved, registrationClass, sigmaScaling, scalingAllg);
+        //slamToolsRos::detectLoopClosure(graphSaved, registrationClass, sigmaScaling, scalingAllg);
         //optimization of graph
-        graphSaved.optimizeGraphWithSlamTopDown(false);
-        //std::vector<int> holdStill{0};
-        //graphSaved.optimizeGraphWithSlam(false,holdStill);
+        //graphSaved.optimizeGraphWithSlamTopDown(false);
         //graphSaved.calculateCovarianceInCloseProximity();
         //visualization of graph in ros
-        slamToolsRos::visualizeCurrentGraph(graphSaved, publisherPathOverTime, publisherKeyFrameClouds,
-                                            publisherMarkerArray, sigmaScaling, publisherPathOverTimeGT,
-                                            groundTruthSorted);
+
+
+
+
+//        slamToolsRos::visualizeCurrentGraph(graphSaved, publisherPathOverTime, publisherKeyFrameClouds,
+//                                            publisherMarkerArray, sigmaScaling, publisherPathOverTimeGT,
+//                                            groundTruthSorted);
     }
-    std::vector<int> holdStill{0};
-    graphSaved.optimizeGraphWithSlam(false,holdStill);
-    slamToolsRos::visualizeCurrentGraph(graphSaved, publisherPathOverTime, publisherKeyFrameClouds,
-                                        publisherMarkerArray, sigmaScaling, publisherPathOverTimeGT,
-                                        groundTruthSorted);
 
     return (0);
 }

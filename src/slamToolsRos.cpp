@@ -382,13 +382,14 @@ void slamToolsRos::calculatePositionOverTime(std::vector<measurement> &angularVe
 
     //std::vector<vertex> &posOverTimeVertex,
     //std::vector<edge> &posOverTimeEdge,
+    float scalingOfWrongData = 0.4;//@TODO just a test scaling of POS Diff
     for (int i = 0; i < timeSteps.size() - 1; i++) {
         Eigen::Vector3f posDiff(linearX[i], linearY[i], 0);//linear Z missing
         Eigen::Quaternionf rotDiff = Eigen::AngleAxisf(0, Eigen::Vector3f::UnitX())//should be added somewhen(6DOF)
                                      * Eigen::AngleAxisf(0, Eigen::Vector3f::UnitY())//should be added somewhen(6DOF)
-                                     * Eigen::AngleAxisf(-angularZ[i], Eigen::Vector3f::UnitZ());//@TODO test for right mapping
+                                     * Eigen::AngleAxisf(-scalingOfWrongData*angularZ[i], Eigen::Vector3f::UnitZ());//@TODO test for right mapping
         Eigen::Vector3f covariancePos(0, 0, 0);
-        edge currentEdge(0, 0, -0.5*posDiff, rotDiff, covariancePos, 0, 3);//@TODO just a test scaling of POS Diff
+        edge currentEdge(0, 0, -scalingOfWrongData*posDiff, rotDiff, covariancePos, 0, 3,graphSlamSaveStructure::INTEGRATED_POS_USAGE);
         currentEdge.setTimeStamp(timeSteps[i + 1]);
         posOverTimeEdge.push_back(currentEdge);
     }
@@ -407,11 +408,11 @@ bool slamToolsRos::detectLoopClosure(graphSlamSaveStructure &graphSaved, scanReg
                       pow((estimatedPosLastPoint.y() - graphSaved.getVertexList()[s].getPositionVertex().y()), 2) /
                       pow((sigmaScaling * graphSaved.getVertexList()[s].getCovariancePosition().y()), 2);
     }
-    const int ignoreLastNLoopClosures = 2;
+    const int ignoreLastNLoopClosures = 1;
     std::vector<int> has2beChecked;
     if (dist.size() > ignoreLastNLoopClosures) {
         for (int i = 0; i < dist.size() - ignoreLastNLoopClosures; i++) {
-            if (dist(i, 0) < 1) {
+            if (dist(i, 0) < 1 && graphSaved.getVertexList()[i].getTypeOfVertex() == graphSlamSaveStructure::POINT_CLOUD_USAGE) {
                 has2beChecked.push_back(i);
             }
         }
@@ -430,8 +431,8 @@ bool slamToolsRos::detectLoopClosure(graphSlamSaveStructure &graphSaved, scanReg
                     graphSaved.getVertexList()[has2beCheckedElemenet].getPointCloud(),
                     graphSaved.getVertexList().back().getPointCloud(),
                     fitnessScore);
-            fitnessScore = scalingAllg * sqrt(fitnessScore);
-            if (fitnessScore < scalingAllg * 4 * 0.1) {
+            fitnessScore = sqrt(fitnessScore);
+            if (fitnessScore < scalingAllg * 4 * 1) {//@TODO was 0.1
                 std::cout << "Found Loop Closure with fitnessScore: " << fitnessScore << std::endl;
                 if (fitnessScore < 0.01) {
                     std::cout << "FitnessScore Very Low: " << fitnessScore << std::endl;
@@ -444,7 +445,7 @@ bool slamToolsRos::detectLoopClosure(graphSlamSaveStructure &graphSaved, scanReg
                 currentPosDiff.z() = 0;
                 Eigen::Vector3f positionCovariance(fitnessScore, fitnessScore, 0);
                 graphSaved.addEdge(has2beCheckedElemenet, (int) graphSaved.getVertexList().size() - 1, currentPosDiff,
-                                   currentRotDiff, positionCovariance, (float) (0.1 * fitnessScore));
+                                   currentRotDiff, positionCovariance, (float) (0.1 * fitnessScore),graphSlamSaveStructure::INTEGRATED_POS_USAGE);
                 foundLoopClosure = true;
                 loopclosureNumber++;
                 if (loopclosureNumber > 1) { break; }// break if multiple loop closures are found

@@ -256,3 +256,6 @@ target_link_libraries(generate_dataset_gazebo ${catkin_LIBRARIES})
 
 add_executable(slamLabyrinth src/slamOfLabyrinth01.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp)
 target_link_libraries(slamLabyrinth ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(testFile src/testFile.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp)
+target_link_libraries(testFile ${PCL_LIBRARIES} ${catkin_LIBRARIES})

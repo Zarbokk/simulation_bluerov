@@ -25,7 +25,7 @@ public:
     Eigen::Matrix4f generalizedIcpRegistration(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
                                                const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
                                     pcl::PointCloud<pcl::PointXYZ>::Ptr &Final,
-                                    double &fitnessScore);
+                                    double &fitnessScore,Eigen::Matrix4f &initialGuessTransformation);
 
 
 

@@ -13,7 +13,7 @@ class vertex {
 
 public:
     vertex(int vertexNumber, const Eigen::Vector3f &positionVertex, const Eigen::Quaternionf &rotationVertex,
-           int degreeOfFreedom, const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion) {
+           int degreeOfFreedom, const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion,int typeOfVertex) {
         vertex::vertexNumber = vertexNumber;
         vertex::positionVertex = positionVertex;
         vertex::rotationVertex = rotationVertex;
@@ -21,12 +21,13 @@ public:
         vertex::pointCloud = tmp;
         vertex::covariancePosition = covariancePosition;
         vertex::covarianceQuaternion = covarianceQuaternion;
+        this->typeOfVertex = typeOfVertex;
     }
 
     vertex(int vertexNumber, const Eigen::Vector3f &positionVertex, const Eigen::Quaternionf &rotationVertex,
            int degreeOfFreedom, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,
            const Eigen::Vector3f &covariancePosition,
-           const float covarianceQuaternion) {
+           const float covarianceQuaternion,int typeOfVertex) {
         vertex::vertexNumber = vertexNumber;
         vertex::positionVertex = positionVertex;
         vertex::rotationVertex = rotationVertex;
@@ -35,6 +36,7 @@ public:
         vertex::covariancePosition = covariancePosition;
         vertex::covarianceQuaternion = covarianceQuaternion;
         setPointCloud(pointCloud);
+        this->typeOfVertex = typeOfVertex;
     }
 
     int getVertexNumber() const;

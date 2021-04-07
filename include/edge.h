@@ -11,8 +11,9 @@
 class edge {
 public:
     edge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-         const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition, const float covarianceQuaternion,
-         int degreeOfFreedom) {
+         const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
+         const float covarianceQuaternion,
+         int degreeOfFreedom, int typeOfEdge) {
         if (degreeOfFreedom == 3) {
             edge::fromVertex = fromVertex;
             edge::toVertex = toVertex;
@@ -26,13 +27,15 @@ public:
             std::cout << "not yet implemented DOF 6" << std::endl;
             std::exit(-1);
         }
-        pcl::PointCloud<pcl::PointXYZ>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZ>);
+        this->typeOfEdge = typeOfEdge;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr tmp(new pcl::PointCloud<pcl::PointXYZ>);
         edge::pointCloud = tmp;
     }
 
     edge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-         const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition, const float covarianceQuaternion,
-         int degreeOfFreedom,pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
+         const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
+         const float covarianceQuaternion,
+         int degreeOfFreedom, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud, const int typeOfEdge) {
         if (degreeOfFreedom == 3) {
             edge::fromVertex = fromVertex;
             edge::toVertex = toVertex;
@@ -46,9 +49,10 @@ public:
             std::cout << "not yet implemented DOF 6" << std::endl;
             std::exit(-1);
         }
-        pcl::PointCloud<pcl::PointXYZ>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr tmp(new pcl::PointCloud<pcl::PointXYZ>);
         edge::pointCloud = tmp;
         setPointCloud(pointCloud);
+        this->typeOfEdge = typeOfEdge;
     }
 
     void setEdge(edge &edgeToCopy);
