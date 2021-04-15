@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "pmap_marker_publisher");
     ros::start();
 
-    dataGenerationClass tmp = dataGenerationClass("tmp");
+    dataGenerationClass tmp = dataGenerationClass("dataset_02");
 
 
     ros::spin();

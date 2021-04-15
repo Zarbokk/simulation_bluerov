@@ -105,7 +105,7 @@ def static_transform_blf_2_rots():
 
     static_transformStamped.header.stamp = rospy.Time.now()
     static_transformStamped.header.frame_id = "base_link_frd_gt"
-    static_transformStamped.child_frame_id = "rotating_sonar_top"
+    static_transformStamped.child_frame_id = "rotating_sonar_bot"
 
 
     static_transformStamped.transform.translation.x = 0

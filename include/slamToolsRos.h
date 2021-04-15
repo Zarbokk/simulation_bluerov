@@ -21,10 +21,10 @@
 
 struct measurement {
     int keyframe;
-    float x;
-    float y;
-    float z;
-    float timeStamp;
+    double x;
+    double y;
+    double z;
+    double timeStamp;
 };
 
 class slamToolsRos {
@@ -32,7 +32,7 @@ class slamToolsRos {
 public:
     static void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &publisherPath,
                                       ros::Publisher &publisherCloud, ros::Publisher &publisherMarkerArray,
-                                      float sigmaScaling, ros::Publisher &publisherPathGT,
+                                      double sigmaScaling, ros::Publisher &publisherPathGT,
                                       std::vector<std::vector<measurement>> &groundTruthSorted);
 
     static std::vector<measurement>
@@ -41,17 +41,17 @@ public:
     static std::vector<std::vector<measurement>> sortToKeyframe(std::vector<measurement> &input);
 
     static void correctPointCloudByPosition(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudScan, std::vector<edge> &posDiff,
-                                            float timestepBeginning);
+                                            double timestepBeginning);
 
     static void
     calculatePositionOverTime(std::vector<measurement> &angularVelocityList, std::vector<measurement> &bodyVelocityList,
                               std::vector<edge> &posOverTimeEdge,
-                              float lastTimeStamp, float currentTimeStamp);
+                              double lastTimeStamp, double currentTimeStamp);
 
     static bool detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass &registrationClass,
-                                  double sigmaScaling, double scalingAllg);
+                                  double sigmaScaling, double cutoffFitnessOnDetect);
 
-    static std::vector<float> linspace(float start_in, float end_in, int num_in);
+    static std::vector<double> linspace(double start_in, double end_in, int num_in);
 };
 
 

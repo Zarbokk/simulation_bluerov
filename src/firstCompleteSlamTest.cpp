@@ -20,7 +20,7 @@ void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &p
 
     nav_msgs::Path posOverTime;
     posOverTime.header.frame_id = "map_ned";
-    Eigen::Matrix4f currentTransformation, completeTransformation;
+    Eigen::Matrix4d currentTransformation, completeTransformation;
     pcl::PointCloud<pcl::PointXYZ> completeCloudWithPos;
     visualization_msgs::MarkerArray markerArray;
     int i = 0;
@@ -32,7 +32,7 @@ void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &p
                 0, 1, 0, vertexElement.getPositionVertex().y(),
                 0, 0, 1, vertexElement.getPositionVertex().z(),
                 0, 0, 0, 1;//transformation missing currently
-        Eigen::Matrix3f m(vertexElement.getRotationVertex().toRotationMatrix());
+        Eigen::Matrix3d m(vertexElement.getRotationVertex().toRotationMatrix());
         completeTransformation.block<3, 3>(0, 0) = m;
         pcl::transformPointCloud(*vertexElement.getPointCloud(), currentScanTransformed, completeTransformation);
         completeCloudWithPos += currentScanTransformed;
@@ -88,9 +88,9 @@ void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &p
 }
 
 bool detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass registrationClass) {
-    Eigen::Vector3f estimatedPosLastPoint = graphSaved.getVertexList().back().getPositionVertex();
+    Eigen::Vector3d estimatedPosLastPoint = graphSaved.getVertexList().back().getPositionVertex();
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloudLast = graphSaved.getVertexList().back().getPointCloud();
-    Eigen::ArrayXXf dist;
+    Eigen::ArrayXXd dist;
     dist.resize(graphSaved.getVertexList().size() - 1, 1);
     for (int s = 0; s < graphSaved.getVertexList().size() - 1; s++) {
         //dist.row(s) = (graphSaved.getVertexList()[s].getPositionVertex() - estimatedPosLastPoint).norm();
@@ -117,7 +117,7 @@ bool detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass
         bool foundLoopClosure = false;
         for (const auto &has2beCheckedElemenet : has2beChecked) {
             double fitnessScore;
-            Eigen::Matrix4f currentTransformation;
+            Eigen::Matrix4d currentTransformation;
             currentTransformation = registrationClass.generalizedIcpRegistrationSimple(
                     graphSaved.getVertexList()[has2beCheckedElemenet].getPointCloud(),
                     graphSaved.getVertexList().back().getPointCloud(),
@@ -129,14 +129,14 @@ bool detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass
                     std::cout << "FitnessScore Very Low: " << fitnessScore << std::endl;
                     fitnessScore = 0.01;
                 }
-                Eigen::Vector3f currentPosDiff;
-                Eigen::Quaternionf currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
+                Eigen::Vector3d currentPosDiff;
+                Eigen::Quaterniond currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
                 currentPosDiff.x() = currentTransformation.inverse()(0, 3);
                 currentPosDiff.y() = currentTransformation.inverse()(1, 3);
                 currentPosDiff.z() = 0;
-                Eigen::Vector3f positionCovariance(fitnessScore, fitnessScore, 0);
+                Eigen::Vector3d positionCovariance(fitnessScore, fitnessScore, 0);
                 graphSaved.addEdge(has2beCheckedElemenet, (int) graphSaved.getVertexList().size() - 1, currentPosDiff,
-                                   currentRotDiff, positionCovariance, (float) (0.1 * fitnessScore));
+                                   currentRotDiff, positionCovariance, (double) (0.1 * fitnessScore),graphSlamSaveStructure::INTEGRATED_POS_USAGE);
                 foundLoopClosure = true;
                 loopclosureNumber++;
                 if (loopclosureNumber > 1) { break; }// break if multiple loop closures are found
@@ -176,7 +176,7 @@ main(int argc, char **argv) {
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr Final(new pcl::PointCloud<pcl::PointXYZ>);
     scanRegistrationClass registrationClass = scanRegistrationClass();
-    Eigen::Matrix4f currentTransformation, completeTransformation;
+    Eigen::Matrix4d currentTransformation, completeTransformation;
     completeTransformation << 1, 0, 0, 0,
             0, 1, 0, 0,
             0, 0, 1, 0,
@@ -190,14 +190,14 @@ main(int argc, char **argv) {
 
     graphSlamSaveStructure graphSaved(dimension);
 
-    Eigen::Vector3f firstPosition(0, 0, 0);
-    Eigen::AngleAxisf rotationVectorFirst(0.0f / 180.0f * 3.14159f, Eigen::Vector3f(0, 0, 1));
-    Eigen::Quaternionf firstRotation(rotationVectorFirst.toRotationMatrix());
-    Eigen::Vector3f covariancePos(0, 0, 0);
+    Eigen::Vector3d firstPosition(0, 0, 0);
+    Eigen::AngleAxisd rotationVectorFirst(0.0f / 180.0f * 3.14159f, Eigen::Vector3d(0, 0, 1));
+    Eigen::Quaterniond firstRotation(rotationVectorFirst.toRotationMatrix());
+    Eigen::Vector3d covariancePos(0, 0, 0);
     graphSaved.addVertex(0, firstPosition, firstRotation, covariancePos, 0,
-                         currentScan);//the first vertex sets 0 of the coordinate system
+                         currentScan,graphSlamSaveStructure::INTEGRATED_POS_USAGE);//the first vertex sets 0 of the coordinate system
 
-    std::deque<float> subgraphs{1, 3};
+    std::deque<double> subgraphs{1, 3};
     graphSaved.initiallizeSubGraphs(subgraphs);
 
     double fitnessScore;
@@ -207,8 +207,13 @@ main(int argc, char **argv) {
         *lastScan = *currentScan;
         pcl::io::loadPCDFile("/home/tim/DataForTests/ScansOfLabyrinth/after_voxel_" + std::to_string(i) + ".pcd",
                              *currentScan);
+        Eigen::Matrix4d guess;
+        guess <<   1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1;
         currentTransformation = registrationClass.generalizedIcpRegistration(lastScan, currentScan, Final,
-                                                                             fitnessScore);
+                                                                             fitnessScore,guess);
 
         fitnessScore = scalingAllg * sqrt(fitnessScore);//0.05f;//constant fitness score test
         //completeTransformation = completeTransformation * currentTransformation;
@@ -218,23 +223,23 @@ main(int argc, char **argv) {
             fitnessScore = 0.01;
         }
 
-        Eigen::Vector3f currentPosDiff;
-        Eigen::Quaternionf currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
+        Eigen::Vector3d currentPosDiff;
+        Eigen::Quaterniond currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
 
 
         currentPosDiff.x() = currentTransformation.inverse()(0, 3);
         currentPosDiff.y() = currentTransformation.inverse()(1, 3);
         currentPosDiff.z() = 0;
-        Eigen::Quaternionf absolutRotation =
-                currentRotDiff * graphSaved.getVertexByIndex(i - 1).getRotationVertex();
+        Eigen::Quaterniond absolutRotation =
+                currentRotDiff * graphSaved.getVertexByIndex(i - 1)->getRotationVertex();
 
-        //Eigen::Vector3f lastCovariancePosOfVertex = graphSaved.getVertexList().back().getCovariancePosition();
-        graphSaved.addVertex(i, graphSaved.getVertexByIndex(i - 1).getPositionVertex() + currentPosDiff,
-                             absolutRotation, Eigen::Vector3f(0, 0, 0), 0, currentScan);
-        Eigen::Vector3f positionCovariance(fitnessScore, fitnessScore, 0);
+        //Eigen::Vector3d lastCovariancePosOfVertex = graphSaved.getVertexList().back().getCovariancePosition();
+        graphSaved.addVertex(i, graphSaved.getVertexByIndex(i - 1)->getPositionVertex() + currentPosDiff,
+                             absolutRotation, Eigen::Vector3d(0, 0, 0), 0, currentScan,graphSlamSaveStructure::INTEGRATED_POS_USAGE);
+        Eigen::Vector3d positionCovariance(fitnessScore, fitnessScore, 0);
         graphSaved.addEdge(i - 1, i, currentPosDiff, currentRotDiff, positionCovariance,
-                           (float) (scalingAngle * fitnessScore),
-                           currentScan);
+                           (double) (scalingAngle * fitnessScore),
+                           currentScan,graphSlamSaveStructure::INTEGRATED_POS_USAGE);
 
 
         bool detectedLoop = detectLoopClosure(graphSaved, registrationClass);//test loop closure

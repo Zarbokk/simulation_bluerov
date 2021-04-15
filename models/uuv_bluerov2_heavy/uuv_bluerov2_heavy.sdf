@@ -93,7 +93,7 @@
             <parent>base_link</parent>
             <child>sonar_link</child>
         </joint>
-<!-- rotating sonar -->
+<!-- rotating sonar
         <include>
           <uri>model://rotatingSonar</uri>
           <pose>0 0 0.2 0 0 0</pose>
@@ -103,8 +103,8 @@
               <child>rotatingSonar::rotating_sonar_base</child>
               <parent>base_link</parent>
         </joint>
-
-<!-- depth camera -->
+-->
+<!-- depth camera
           <link name="front_camera_link">
             <pose>0.0 0.0 -0.2 0 0.4 0</pose>
             <inertial>
@@ -179,7 +179,7 @@
                 </limit>
               </axis>
             </joint>
-
+-->
     <include>
       <uri>model://gps</uri>
       <pose>0 0 0 0 0 0</pose>
@@ -241,7 +241,7 @@
             <timeConstantDown>0.025</timeConstantDown>
             <maxRotVelocity>1100</maxRotVelocity>
             <motorConstant>100</motorConstant>
-            <momentConstant>0.01</momentConstant>
+            <momentConstant>0.05</momentConstant>
             <rotorDragCoefficient>0</rotorDragCoefficient>
             <rollingMomentCoefficient>0</rollingMomentCoefficient>
             <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
@@ -301,7 +301,7 @@
             <timeConstantDown>0.025</timeConstantDown>
             <maxRotVelocity>1100</maxRotVelocity>
             <motorConstant>100</motorConstant>
-            <momentConstant>0.01</momentConstant>
+            <momentConstant>0.05</momentConstant>
             <rotorDragCoefficient>0</rotorDragCoefficient>
             <rollingMomentCoefficient>0</rollingMomentCoefficient>
             <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
@@ -356,12 +356,12 @@
             <reversible>true</reversible>
             <jointName>thruster3_joint</jointName>
             <linkName>thruster3</linkName>
-            <turningDirection>ccw</turningDirection>
+            <turningDirection>cw</turningDirection>
             <timeConstantUp>0.0125</timeConstantUp>
             <timeConstantDown>0.025</timeConstantDown>
             <maxRotVelocity>1100</maxRotVelocity>
-            <motorConstant>-100</motorConstant>
-            <momentConstant>-0.01</momentConstant>
+            <motorConstant>100</motorConstant>
+            <momentConstant>0.05</momentConstant>
             <rotorDragCoefficient>0</rotorDragCoefficient>
             <rollingMomentCoefficient>0</rollingMomentCoefficient>
             <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
@@ -416,12 +416,12 @@
             <reversible>true</reversible>
             <jointName>thruster4_joint</jointName>
             <linkName>thruster4</linkName>
-            <turningDirection>ccw</turningDirection>
+            <turningDirection>cw</turningDirection>
             <timeConstantUp>0.0125</timeConstantUp>
             <timeConstantDown>0.025</timeConstantDown>
             <maxRotVelocity>1100</maxRotVelocity>
-            <motorConstant>-100</motorConstant>
-            <momentConstant>-0.01</momentConstant>
+            <motorConstant>100</motorConstant>
+            <momentConstant>0.05</momentConstant>
             <rotorDragCoefficient>0</rotorDragCoefficient>
             <rollingMomentCoefficient>0</rollingMomentCoefficient>
             <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
@@ -481,7 +481,7 @@
             <timeConstantDown>0.025</timeConstantDown>
             <maxRotVelocity>1100</maxRotVelocity>
             <motorConstant>100</motorConstant>
-            <momentConstant>0.01</momentConstant>
+            <momentConstant>0.05</momentConstant>
             <rotorDragCoefficient>0</rotorDragCoefficient>
             <rollingMomentCoefficient>0</rollingMomentCoefficient>
             <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
@@ -536,12 +536,12 @@
             <reversible>true</reversible>
             <jointName>thruster6_joint</jointName>
             <linkName>thruster6</linkName>
-            <turningDirection>ccw</turningDirection>
+            <turningDirection>cw</turningDirection>
             <timeConstantUp>0.0125</timeConstantUp>
             <timeConstantDown>0.025</timeConstantDown>
             <maxRotVelocity>1100</maxRotVelocity>
-            <motorConstant>-100</motorConstant>
-            <momentConstant>-0.01</momentConstant>
+            <motorConstant>100</motorConstant>
+            <momentConstant>0.05</momentConstant>
             <rotorDragCoefficient>0</rotorDragCoefficient>
             <rollingMomentCoefficient>0</rollingMomentCoefficient>
             <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
@@ -597,12 +597,12 @@
             <reversible>true</reversible>
             <jointName>thruster7_joint</jointName>
             <linkName>thruster7</linkName>
-            <turningDirection>ccw</turningDirection>
+            <turningDirection>cw</turningDirection>
             <timeConstantUp>0.0125</timeConstantUp>
             <timeConstantDown>0.025</timeConstantDown>
             <maxRotVelocity>1100</maxRotVelocity>
-            <motorConstant>-100</motorConstant>
-            <momentConstant>-0.01</momentConstant>
+            <motorConstant>100</motorConstant>
+            <momentConstant>0.05</momentConstant>
             <rotorDragCoefficient>0</rotorDragCoefficient>
             <rollingMomentCoefficient>0</rollingMomentCoefficient>
             <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
@@ -662,7 +662,7 @@
             <timeConstantDown>0.025</timeConstantDown>
             <maxRotVelocity>1100</maxRotVelocity>
             <motorConstant>100</motorConstant>
-            <momentConstant>0.01</momentConstant>
+            <momentConstant>0.05</momentConstant>
             <rotorDragCoefficient>0</rotorDragCoefficient>
             <rollingMomentCoefficient>0</rollingMomentCoefficient>
             <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>

@@ -6,12 +6,12 @@
 
 void slamToolsRos::visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &publisherPath,
                                          ros::Publisher &publisherCloud, ros::Publisher &publisherMarkerArray,
-                                         float sigmaScaling, ros::Publisher &publisherPathGT,
+                                         double sigmaScaling, ros::Publisher &publisherPathGT,
                                          std::vector<std::vector<measurement>> &groundTruthSorted) {
 
     nav_msgs::Path posOverTime;
     posOverTime.header.frame_id = "map_ned";
-    Eigen::Matrix4f currentTransformation, completeTransformation;
+    Eigen::Matrix4d currentTransformation, completeTransformation;
     pcl::PointCloud<pcl::PointXYZ> completeCloudWithPos;
     visualization_msgs::MarkerArray markerArray;
     int i = 0;
@@ -23,7 +23,7 @@ void slamToolsRos::visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros
                 0, 1, 0, vertexElement.getPositionVertex().y(),
                 0, 0, 1, vertexElement.getPositionVertex().z(),
                 0, 0, 0, 1;//transformation missing currently
-        Eigen::Matrix3f m(vertexElement.getRotationVertex().toRotationMatrix());
+        Eigen::Matrix3d m(vertexElement.getRotationVertex().toRotationMatrix());
         completeTransformation.block<3, 3>(0, 0) = m;
         pcl::transformPointCloud(*vertexElement.getPointCloud(), currentScanTransformed, completeTransformation);
         completeCloudWithPos += currentScanTransformed;
@@ -145,19 +145,19 @@ std::vector<std::vector<measurement>> slamToolsRos::sortToKeyframe(std::vector<m
 
 void
 slamToolsRos::correctPointCloudByPosition(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudScan, std::vector<edge> &posDiff,
-                                          float timestepBeginning) {
+                                          double timestepBeginning) {
     //this is assuming we are linear in time
     //resulting scan should be at end position means: point 0 is transformed by diff of pos 0 to n
 
     struct pclAngle {
         pcl::PointXYZ pointXyz;
-        float angle{};
+        double angle{};
     };
 
     //calculate angle of every point
     std::vector<pclAngle> vectorOfPointsAngle;
-    for (int i = 0; i < cloudScan->size(); i++) {
-        float currentAngle = fmod(2 * (float) M_PI + atan2(cloudScan->points[i].y, cloudScan->points[i].x), 2 * M_PI);
+    for (int i = 0; i < cloudScan->size(); i++) {//@TODO has to be corrected Last Point is always a positive angle and not under 2 pi
+        double currentAngle = fmod(2 * (double) M_PI + atan2(cloudScan->points[i].y, cloudScan->points[i].x), 2 * M_PI);
         pclAngle tmpPCL;
         tmpPCL.pointXyz = cloudScan->points[i];
         tmpPCL.angle = currentAngle;
@@ -169,12 +169,12 @@ slamToolsRos::correctPointCloudByPosition(pcl::PointCloud<pcl::PointXYZ>::Ptr cl
 
 
     //calculate number of points transformations defined by edge list
-    std::vector<Eigen::Matrix4f> listOfTransormations;
-    float startTime = timestepBeginning;
-    float endTime = posDiff.back().getTimeStamp();
-    std::vector<float> timeStepsForCorrection = slamToolsRos::linspace(startTime, endTime, vectorOfPointsAngle.size());
+    std::vector<Eigen::Matrix4d> listOfTransormations;
+    double startTime = timestepBeginning;
+    double endTime = posDiff.back().getTimeStamp();
+    std::vector<double> timeStepsForCorrection = slamToolsRos::linspace(startTime, endTime, vectorOfPointsAngle.size());
     for (int i = 0; i < timeStepsForCorrection.size(); i++) {
-        Eigen::Matrix4f currentTransformation;
+        Eigen::Matrix4d currentTransformation;
         currentTransformation << 1, 0, 0, 0,
                 0, 1, 0, 0,
                 0, 0, 1, 0,
@@ -197,21 +197,21 @@ slamToolsRos::correctPointCloudByPosition(pcl::PointCloud<pcl::PointXYZ>::Ptr cl
             } else {
                 //interpolate from timeStepsForCorrection[i] to posDiff[j]
 
-                float fromTimeStep = timeStepsForCorrection[i];
-                float toTimeStep = posDiff[j].getTimeStamp();
+                double fromTimeStep = timeStepsForCorrection[i];
+                double toTimeStep = posDiff[j].getTimeStamp();
                 //interpolate posDiff[j] from to
-                Eigen::Matrix4f firstTransformation = posDiff[j].getTransformation();
-                float interpolationFactor =
+                Eigen::Matrix4d firstTransformation = posDiff[j].getTransformation();
+                double interpolationFactor =
                         (toTimeStep - fromTimeStep) / (posDiff[j].getTimeStamp() - startTime);
                 firstTransformation.block<3, 1>(0, 3) = interpolationFactor * firstTransformation.block<3, 1>(0, 3);
-                Eigen::Matrix3f rotationMatrix = firstTransformation.block<3, 3>(0, 0);
-                Eigen::Vector3f eulerAngles = rotationMatrix.eulerAngles(0, 1, 2);
+                Eigen::Matrix3d rotationMatrix = firstTransformation.block<3, 3>(0, 0);
+                Eigen::Vector3d eulerAngles = rotationMatrix.eulerAngles(0, 1, 2);
                 eulerAngles = interpolationFactor * eulerAngles;
 
-                Eigen::Matrix3f tmp;
-                tmp = Eigen::AngleAxisf(eulerAngles[0], Eigen::Vector3f::UnitX()) *
-                      Eigen::AngleAxisf(eulerAngles[1], Eigen::Vector3f::UnitY()) *
-                      Eigen::AngleAxisf(eulerAngles[2], Eigen::Vector3f::UnitZ());
+                Eigen::Matrix3d tmp;
+                tmp = Eigen::AngleAxisd(eulerAngles[0], Eigen::Vector3d::UnitX()) *
+                      Eigen::AngleAxisd(eulerAngles[1], Eigen::Vector3d::UnitY()) *
+                      Eigen::AngleAxisd(eulerAngles[2], Eigen::Vector3d::UnitZ());
                 firstTransformation.block<3, 3>(0, 0) = tmp;
                 currentTransformation *= firstTransformation;
                 //add rest
@@ -223,21 +223,21 @@ slamToolsRos::correctPointCloudByPosition(pcl::PointCloud<pcl::PointXYZ>::Ptr cl
             }
         } else {
             //interpolate first step
-            float fromTimeStep = timeStepsForCorrection[i];
-            float toTimeStep = posDiff[j].getTimeStamp();
+            double fromTimeStep = timeStepsForCorrection[i];
+            double toTimeStep = posDiff[j].getTimeStamp();
             //interpolate posDiff[j] from to
-            Eigen::Matrix4f firstTransformation = posDiff[j].getTransformation();
-            float interpolationFactor =
+            Eigen::Matrix4d firstTransformation = posDiff[j].getTransformation();
+            double interpolationFactor =
                     (toTimeStep - fromTimeStep) / (posDiff[j].getTimeStamp() - posDiff[j - 1].getTimeStamp());
             firstTransformation.block<3, 1>(0, 3) = interpolationFactor * firstTransformation.block<3, 1>(0, 3);
-            Eigen::Matrix3f rotationMatrix = firstTransformation.block<3, 3>(0, 0);
-            Eigen::Vector3f eulerAngles = rotationMatrix.eulerAngles(0, 1, 2);
+            Eigen::Matrix3d rotationMatrix = firstTransformation.block<3, 3>(0, 0);
+            Eigen::Vector3d eulerAngles = rotationMatrix.eulerAngles(0, 1, 2);
             eulerAngles = interpolationFactor * eulerAngles;
 
-            Eigen::Matrix3f tmp;
-            tmp = Eigen::AngleAxisf(eulerAngles[0], Eigen::Vector3f::UnitX()) *
-                  Eigen::AngleAxisf(eulerAngles[1], Eigen::Vector3f::UnitY()) *
-                  Eigen::AngleAxisf(eulerAngles[2], Eigen::Vector3f::UnitZ());
+            Eigen::Matrix3d tmp;
+            tmp = Eigen::AngleAxisd(eulerAngles[0], Eigen::Vector3d::UnitX()) *
+                  Eigen::AngleAxisd(eulerAngles[1], Eigen::Vector3d::UnitY()) *
+                  Eigen::AngleAxisd(eulerAngles[2], Eigen::Vector3d::UnitZ());
             firstTransformation.block<3, 3>(0, 0) = tmp;
             currentTransformation *= firstTransformation;
             for (int k = j + 1; k < posDiff.size(); k++) {
@@ -253,7 +253,7 @@ slamToolsRos::correctPointCloudByPosition(pcl::PointCloud<pcl::PointXYZ>::Ptr cl
     for (int i = 0; i < vectorOfPointsAngle.size(); i++) {
         pcl::PointXYZ point;
         point = vectorOfPointsAngle[i].pointXyz;
-        Eigen::Vector4f currentPoint(point.x, point.y, point.z, 1);
+        Eigen::Vector4d currentPoint(point.x, point.y, point.z, 1);
         currentPoint = listOfTransormations[i].inverse() * currentPoint;
         point.x = currentPoint.x();
         point.y = currentPoint.y();
@@ -264,12 +264,12 @@ slamToolsRos::correctPointCloudByPosition(pcl::PointCloud<pcl::PointXYZ>::Ptr cl
     *cloudScan = cloud;
 }
 
-std::vector<float> slamToolsRos::linspace(float start_in, float end_in, int num_in) {
+std::vector<double> slamToolsRos::linspace(double start_in, double end_in, int num_in) {
 
-    std::vector<float> linspaced;
+    std::vector<double> linspaced;
 
-    float start = start_in;
-    float end = end_in;
+    double start = start_in;
+    double end = end_in;
     auto num = (double) num_in;
 
     if (num == 0) { return linspaced; }
@@ -291,13 +291,13 @@ std::vector<float> slamToolsRos::linspace(float start_in, float end_in, int num_
 void slamToolsRos::calculatePositionOverTime(std::vector<measurement> &angularVelocityList,
                                              std::vector<measurement> &bodyVelocityList,
                                              std::vector<edge> &posOverTimeEdge,
-                                             float lastTimeStamp,
-                                             float currentTimeStamp) {//last then current
+                                             double lastTimeStamp,
+                                             double currentTimeStamp) {//last then current
     posOverTimeEdge.clear();
-    std::vector<float> timeSteps = slamToolsRos::linspace(lastTimeStamp, currentTimeStamp, 10);
-    std::vector<float> angularX;
-    std::vector<float> angularY;
-    std::vector<float> angularZ;
+    std::vector<double> timeSteps = slamToolsRos::linspace(lastTimeStamp, currentTimeStamp, 10);
+    std::vector<double> angularX;
+    std::vector<double> angularY;
+    std::vector<double> angularZ;
     for (int i = 1;
          i < timeSteps.size(); i++) {//calculate that between lastTimeKeyFrame and timeCurrentGroundTruth
         std::vector<measurement> measurementsOfInterest;
@@ -308,9 +308,9 @@ void slamToolsRos::calculatePositionOverTime(std::vector<measurement> &angularVe
             }
         }
 
-        float integratorX = 0;
-        float integratorY = 0;
-        float integratorZ = 0;
+        double integratorX = 0;
+        double integratorY = 0;
+        double integratorZ = 0;
         for (int j = 0; j < measurementsOfInterest.size(); j++) {
             if (j == angularVelocityList.size() - 1) {
                 integratorX += angularVelocityList[j].x * (timeSteps[i] - angularVelocityList[j - 1].timeStamp);
@@ -337,9 +337,9 @@ void slamToolsRos::calculatePositionOverTime(std::vector<measurement> &angularVe
     }
 
 
-    std::vector<float> linearX;
-    std::vector<float> linearY;
-    std::vector<float> linearZ;
+    std::vector<double> linearX;
+    std::vector<double> linearY;
+    std::vector<double> linearZ;
     for (int i = 1;
          i < timeSteps.size(); i++) {//calculate that between lastTimeKeyFrame and timeCurrentGroundTruth
         std::vector<measurement> measurementsOfInterest;
@@ -350,9 +350,9 @@ void slamToolsRos::calculatePositionOverTime(std::vector<measurement> &angularVe
             }
         }
 
-        float integratorX = 0;
-        float integratorY = 0;
-        float integratorZ = 0;
+        double integratorX = 0;
+        double integratorY = 0;
+        double integratorZ = 0;
         for (int j = 0; j < measurementsOfInterest.size(); j++) {
             if (j == bodyVelocityList.size() - 1) {
                 integratorX += bodyVelocityList[j].x * (timeSteps[i] - bodyVelocityList[j - 1].timeStamp);
@@ -382,13 +382,13 @@ void slamToolsRos::calculatePositionOverTime(std::vector<measurement> &angularVe
 
     //std::vector<vertex> &posOverTimeVertex,
     //std::vector<edge> &posOverTimeEdge,
-    float scalingOfWrongData = 0.4;//@TODO just a test scaling of POS Diff
+    double scalingOfWrongData = 0.3;//@TODO just a test scaling of POS Diff
     for (int i = 0; i < timeSteps.size() - 1; i++) {
-        Eigen::Vector3f posDiff(linearX[i], linearY[i], 0);//linear Z missing
-        Eigen::Quaternionf rotDiff = Eigen::AngleAxisf(0, Eigen::Vector3f::UnitX())//should be added somewhen(6DOF)
-                                     * Eigen::AngleAxisf(0, Eigen::Vector3f::UnitY())//should be added somewhen(6DOF)
-                                     * Eigen::AngleAxisf(-scalingOfWrongData*angularZ[i], Eigen::Vector3f::UnitZ());//@TODO test for right mapping
-        Eigen::Vector3f covariancePos(0, 0, 0);
+        Eigen::Vector3d posDiff(linearX[i], linearY[i], 0);//linear Z missing
+        Eigen::Quaterniond rotDiff = Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX())//should be added somewhen(6DOF)
+                                     * Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY())//should be added somewhen(6DOF)
+                                     * Eigen::AngleAxisd(-scalingOfWrongData*angularZ[i], Eigen::Vector3d::UnitZ());//@TODO test for right mapping
+        Eigen::Vector3d covariancePos(0, 0, 0);
         edge currentEdge(0, 0, -scalingOfWrongData*posDiff, rotDiff, covariancePos, 0, 3,graphSlamSaveStructure::INTEGRATED_POS_USAGE);
         currentEdge.setTimeStamp(timeSteps[i + 1]);
         posOverTimeEdge.push_back(currentEdge);
@@ -396,8 +396,8 @@ void slamToolsRos::calculatePositionOverTime(std::vector<measurement> &angularVe
 }
 
 bool slamToolsRos::detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass &registrationClass,
-                                     double sigmaScaling, double scalingAllg) {
-    Eigen::Vector3f estimatedPosLastPoint = graphSaved.getVertexList().back().getPositionVertex();
+                                     double sigmaScaling, double cutoffFitnessOnDetect) {
+    Eigen::Vector3d estimatedPosLastPoint = graphSaved.getVertexList().back().getPositionVertex();
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloudLast = graphSaved.getVertexList().back().getPointCloud();
     Eigen::ArrayXXf dist;
     dist.resize(graphSaved.getVertexList().size() - 1, 1);
@@ -426,26 +426,28 @@ bool slamToolsRos::detectLoopClosure(graphSlamSaveStructure &graphSaved, scanReg
         bool foundLoopClosure = false;
         for (const auto &has2beCheckedElemenet : has2beChecked) {
             double fitnessScore;
-            Eigen::Matrix4f currentTransformation;
+            Eigen::Matrix4d currentTransformation,guess;
+            guess = graphSaved.getVertexList().back().getTransformation().inverse() *
+                    graphSaved.getVertexList()[has2beCheckedElemenet].getTransformation();
             currentTransformation = registrationClass.generalizedIcpRegistrationSimple(
                     graphSaved.getVertexList()[has2beCheckedElemenet].getPointCloud(),
                     graphSaved.getVertexList().back().getPointCloud(),
-                    fitnessScore);
+                    fitnessScore,guess);
             fitnessScore = sqrt(fitnessScore);
-            if (fitnessScore < scalingAllg * 4 * 1) {//@TODO was 0.1
+            if (fitnessScore < cutoffFitnessOnDetect) {//@TODO was 0.1
                 std::cout << "Found Loop Closure with fitnessScore: " << fitnessScore << std::endl;
                 if (fitnessScore < 0.01) {
                     std::cout << "FitnessScore Very Low: " << fitnessScore << std::endl;
                     fitnessScore = 0.01;
                 }
-                Eigen::Vector3f currentPosDiff;
-                Eigen::Quaternionf currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
+                Eigen::Vector3d currentPosDiff;
+                Eigen::Quaterniond currentRotDiff(currentTransformation.inverse().block<3, 3>(0, 0));
                 currentPosDiff.x() = currentTransformation.inverse()(0, 3);
                 currentPosDiff.y() = currentTransformation.inverse()(1, 3);
                 currentPosDiff.z() = 0;
-                Eigen::Vector3f positionCovariance(fitnessScore, fitnessScore, 0);
+                Eigen::Vector3d positionCovariance(fitnessScore, fitnessScore, 0);
                 graphSaved.addEdge(has2beCheckedElemenet, (int) graphSaved.getVertexList().size() - 1, currentPosDiff,
-                                   currentRotDiff, positionCovariance, (float) (0.1 * fitnessScore),graphSlamSaveStructure::INTEGRATED_POS_USAGE);
+                                   currentRotDiff, positionCovariance, (double) (0.1 * fitnessScore),graphSlamSaveStructure::INTEGRATED_POS_USAGE);
                 foundLoopClosure = true;
                 loopclosureNumber++;
                 if (loopclosureNumber > 1) { break; }// break if multiple loop closures are found

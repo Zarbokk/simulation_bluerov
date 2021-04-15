@@ -10,10 +10,13 @@
 
 class edge {
 public:
-    edge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-         const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
-         const float covarianceQuaternion,
+    edge(const int fromVertex, const int toVertex, const Eigen::Vector3d &positionDifference,
+         const Eigen::Quaterniond &rotationDifference, const Eigen::Vector3d covariancePosition,
+         const double covarianceQuaternion,
          int degreeOfFreedom, int typeOfEdge) {
+//        if(abs(rotationDifference.z())>0.2){
+//            std::cout << rotationDifference.z()<<"  " << rotationDifference.w()<< std::endl;
+//        }
         if (degreeOfFreedom == 3) {
             edge::fromVertex = fromVertex;
             edge::toVertex = toVertex;
@@ -32,9 +35,9 @@ public:
         edge::pointCloud = tmp;
     }
 
-    edge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-         const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
-         const float covarianceQuaternion,
+    edge(const int fromVertex, const int toVertex, const Eigen::Vector3d &positionDifference,
+         const Eigen::Quaterniond &rotationDifference, const Eigen::Vector3d covariancePosition,
+         const double covarianceQuaternion,
          int degreeOfFreedom, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud, const int typeOfEdge) {
         if (degreeOfFreedom == 3) {
             edge::fromVertex = fromVertex;
@@ -57,21 +60,21 @@ public:
 
     void setEdge(edge &edgeToCopy);
 
-    Eigen::Vector3f getCovariancePosition() const;
+    Eigen::Vector3d getCovariancePosition() const;
 
-    void setCovariancePosition(Eigen::Vector3f covariancePosition);
+    void setCovariancePosition(Eigen::Vector3d covariancePosition);
 
-    float getCovarianceQuaternion() const;
+    double getCovarianceQuaternion() const;
 
-    void setCovarianceQuaternion(float covarianceQuaternion);
+    void setCovarianceQuaternion(double covarianceQuaternion);
 
-    const Eigen::Vector3f &getPositionDifference() const;
+    const Eigen::Vector3d &getPositionDifference() const;
 
-    void setPositionDifference(const Eigen::Vector3f &positionDifference);
+    void setPositionDifference(const Eigen::Vector3d &positionDifference);
 
-    const Eigen::Quaternionf &getRotationDifference() const;
+    const Eigen::Quaterniond &getRotationDifference() const;
 
-    void setRotationDifference(const Eigen::Quaternionf &rotationDifference);
+    void setRotationDifference(const Eigen::Quaterniond &rotationDifference);
 
     int getFromVertex() const;
 
@@ -89,8 +92,8 @@ public:
 private:
     int fromVertex;
     int toVertex;
-    Eigen::Vector3f covariancePosition;//estimated covarianze for this measurement in x y z
-    float covarianceQuaternion;//estimated covarianze for this measurement in q = w x y z (rotation)
+    Eigen::Vector3d covariancePosition;//estimated covarianze for this measurement in x y z
+    double covarianceQuaternion;//estimated covarianze for this measurement in q = w x y z (rotation)
     bool hasPointCloud;
 public:
     bool getHasPointCloud() const;
@@ -98,11 +101,11 @@ public:
     void setHasPointCloud(bool hasPointCloud);
 
 private:
-    Eigen::Vector3f positionDifference;
-    Eigen::Quaternionf rotationDifference;
+    Eigen::Vector3d positionDifference;
+    Eigen::Quaterniond rotationDifference;
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud;//measurement
     int typeOfEdge;// 0=pointCloud    %%%%%%%%%   1 = integratedPosDiff
-    float timeStamp;
+    double timeStamp;
 public:
     bool isHasPointCloud() const;
 
@@ -110,11 +113,11 @@ public:
 
     void setTypeOfEdge(int typeOfEdge);
 
-    float getTimeStamp() const;
+    double getTimeStamp() const;
 
-    void setTimeStamp(float timeStamp);
+    void setTimeStamp(double timeStamp);
 
-    Eigen::Matrix4f getTransformation();
+    Eigen::Matrix4d getTransformation();
 };
 
 

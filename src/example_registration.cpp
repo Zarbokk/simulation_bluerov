@@ -14,7 +14,7 @@ void visualizeKeyFrameList(std::vector<keyFrame> &keyframeList, ros::Publisher &
 
     nav_msgs::Path posOverTime;
     posOverTime.header.frame_id = "map_ned";
-    Eigen::Matrix4f currentTransformation, completeTransformation;
+    Eigen::Matrix4d currentTransformation, completeTransformation;
     pcl::PointCloud<pcl::PointXYZ> completeCloudWithPos;
     visualization_msgs::MarkerArray markerArray;
     int i = 0;
@@ -26,7 +26,7 @@ void visualizeKeyFrameList(std::vector<keyFrame> &keyframeList, ros::Publisher &
                 0, 1, 0, keyFrameElement.getEstimatedPos().y(),
                 0, 0, 1, keyFrameElement.getEstimatedPos().z(),
                 0, 0, 0, 1;//transformation missing currently
-        Eigen::Matrix3f m(keyFrameElement.getEstimatedRotation());
+        Eigen::Matrix3d m(keyFrameElement.getEstimatedRotation());
         completeTransformation.block<3, 3>(0, 0) = m;
         pcl::transformPointCloud(*keyFrameElement.getPointCloud(), currentScanTransformed, completeTransformation);
         completeCloudWithPos += currentScanTransformed;
@@ -80,10 +80,10 @@ void visualizeKeyFrameList(std::vector<keyFrame> &keyframeList, ros::Publisher &
 }
 
 void detectLoopClosure(std::vector<keyFrame> &keyframeList,scanRegistrationClass registrationClass) {
-    Eigen::Vector3f estimatedPosLastPoint = keyframeList.back().getEstimatedPos();
-    Eigen::Vector3f estimatedCovarianz = keyframeList.back().getEstimatedPos();
+    Eigen::Vector3d estimatedPosLastPoint = keyframeList.back().getEstimatedPos();
+    Eigen::Vector3d estimatedCovarianz = keyframeList.back().getEstimatedPos();
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloudLast = keyframeList.back().getPointCloud();
-    Eigen::ArrayXXf dist;
+    Eigen::ArrayXXd dist;
     dist.resize(keyframeList.size() - 1, 1);
     for (int s = 0; s < keyframeList.size() - 1; s++) {
         dist.row(s) = (keyframeList[s].getEstimatedPos() - estimatedPosLastPoint).norm();
@@ -99,7 +99,7 @@ void detectLoopClosure(std::vector<keyFrame> &keyframeList,scanRegistrationClass
         std::cout << "loop closure for:" << std::endl;
         for (const auto &has2beCheckedElemenet : has2beChecked) {
             double fitnessScore;
-            Eigen::Matrix4f currentTransformation;
+            Eigen::Matrix4d currentTransformation;
             currentTransformation = registrationClass.generalizedIcpRegistrationSimple(keyframeList[has2beCheckedElemenet].getPointCloud(), keyframeList.back().getPointCloud(), fitnessScore);
 
             if (fitnessScore<1){
@@ -142,7 +142,7 @@ main(int argc, char **argv) {
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr Final(new pcl::PointCloud<pcl::PointXYZ>);
     scanRegistrationClass registrationClass = scanRegistrationClass();
-    Eigen::Matrix4f currentTransformation, completeTransformation;
+    Eigen::Matrix4d currentTransformation, completeTransformation;
     completeTransformation <<   1, 0, 0, 0,
                                 0, 1, 0, 0,
                                 0, 0, 1, 0,
@@ -157,7 +157,7 @@ main(int argc, char **argv) {
     std::vector<keyFrame> keyframeList;
     keyFrame currentFrame;
     currentFrame.setPointCloud(cloudFirstScan);
-    Eigen::Vector3f currentEstPos, currentPosCov;
+    Eigen::Vector3d currentEstPos, currentPosCov;
     currentEstPos.x() = 0;
     currentEstPos.y() = 0;
     currentEstPos.z() = 0;
@@ -167,7 +167,7 @@ main(int argc, char **argv) {
     currentPosCov.y() = 0;
     currentPosCov.z() = 0;
     currentFrame.setCovarianzPos(currentPosCov);
-    Eigen::Quaternionf tmpRotation(completeTransformation.inverse().block<3, 3>(0, 0));
+    Eigen::Quaterniond tmpRotation(completeTransformation.inverse().block<3, 3>(0, 0));
     currentFrame.setEstimatedRotation(tmpRotation);
 
     keyframeList.push_back(currentFrame);
@@ -183,7 +183,7 @@ main(int argc, char **argv) {
 
 
         geometry_msgs::PoseStamped pos;
-        Eigen::Quaternionf q(completeTransformation.inverse().block<3, 3>(0, 0));
+        Eigen::Quaterniond q(completeTransformation.inverse().block<3, 3>(0, 0));
 
         currentEstPos.x() = completeTransformation.inverse()(0, 3);
         currentEstPos.y() = completeTransformation.inverse()(1, 3);

@@ -12,19 +12,19 @@ void vertex::setVertexNumber(int vertexNumber) {
     vertex::vertexNumber = vertexNumber;
 }
 
-const Eigen::Vector3f &vertex::getPositionVertex() const {
+const Eigen::Vector3d &vertex::getPositionVertex() const {
     return positionVertex;
 }
 
-void vertex::setPositionVertex(const Eigen::Vector3f &positionVertex) {
+void vertex::setPositionVertex(const Eigen::Vector3d &positionVertex) {
     vertex::positionVertex = positionVertex;
 }
 
-const Eigen::Quaternionf &vertex::getRotationVertex() const {
+const Eigen::Quaterniond &vertex::getRotationVertex() const {
     return rotationVertex;
 }
 
-void vertex::setRotationVertex(const Eigen::Quaternionf &rotationVertex) {
+void vertex::setRotationVertex(const Eigen::Quaterniond &rotationVertex) {
     vertex::rotationVertex = rotationVertex;
 }
 
@@ -36,30 +36,30 @@ void vertex::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud
     *vertex::pointCloud = *pointCloud;
 }
 
-Eigen::Vector3f vertex::getCovariancePosition() const {
+Eigen::Vector3d vertex::getCovariancePosition() const {
     return covariancePosition;
 }
 
-void vertex::setCovariancePosition(Eigen::Vector3f covariancePosition) {
+void vertex::setCovariancePosition(Eigen::Vector3d covariancePosition) {
     vertex::covariancePosition = covariancePosition;
 }
 
-float vertex::getCovarianceQuaternion() const {
+double vertex::getCovarianceQuaternion() const {
     return covarianceQuaternion;
 }
 
-void vertex::setCovarianceQuaternion(float covarianceQuaternion) {
+void vertex::setCovarianceQuaternion(double covarianceQuaternion) {
     vertex::covarianceQuaternion = covarianceQuaternion;
 }
 
-Eigen::Matrix4f vertex::getTransformation(){
-    Eigen::Matrix4f transformation;
+Eigen::Matrix4d vertex::getTransformation(){
+    Eigen::Matrix4d transformation;
 
     transformation << 1, 0, 0, this->positionVertex.x(),
             0, 1, 0, this->positionVertex.y(),
             0, 0, 1, this->positionVertex.z(),
             0, 0, 0, 1;//transformation missing currently
-    Eigen::Matrix3f m(this->rotationVertex.toRotationMatrix());
+    Eigen::Matrix3d m(this->rotationVertex.toRotationMatrix());
     transformation.block<3, 3>(0, 0) = m;
     return transformation;
 }
@@ -72,10 +72,10 @@ void vertex::setTypeOfVertex(int typeOfVertex) {// 0=pointCloud    %%%%%%%%%   1
     vertex::typeOfVertex = typeOfVertex;
 }
 
-float vertex::getTimeStamp() const {
+double vertex::getTimeStamp() const {
     return timeStamp;
 }
 
-void vertex::setTimeStamp(float timeStamp) {
+void vertex::setTimeStamp(double timeStamp) {
     vertex::timeStamp = timeStamp;
 }

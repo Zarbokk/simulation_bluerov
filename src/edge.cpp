@@ -28,7 +28,7 @@ void edge::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) 
     *edge::pointCloud = *pointCloud;
 }
 
-Eigen::Vector3f edge::getCovariancePosition() const {
+Eigen::Vector3d edge::getCovariancePosition() const {
     return covariancePosition;
 }
 
@@ -44,31 +44,31 @@ void edge::setEdge(edge &edgeToCopy){
 
 }
 
-void edge::setCovariancePosition(Eigen::Vector3f covariancePosition) {
+void edge::setCovariancePosition(Eigen::Vector3d covariancePosition) {
     edge::covariancePosition = covariancePosition;
 }
 
-float edge::getCovarianceQuaternion() const {
+double edge::getCovarianceQuaternion() const {
     return covarianceQuaternion;
 }
 
-void edge::setCovarianceQuaternion(float covarianceQuaternion) {
+void edge::setCovarianceQuaternion(double covarianceQuaternion) {
     edge::covarianceQuaternion = covarianceQuaternion;
 }
 
-const Eigen::Vector3f &edge::getPositionDifference() const {
+const Eigen::Vector3d &edge::getPositionDifference() const {
     return positionDifference;
 }
 
-void edge::setPositionDifference(const Eigen::Vector3f &positionDifference) {
+void edge::setPositionDifference(const Eigen::Vector3d &positionDifference) {
     edge::positionDifference = positionDifference;
 }
 
-const Eigen::Quaternionf &edge::getRotationDifference() const {
+const Eigen::Quaterniond &edge::getRotationDifference() const {
     return rotationDifference;
 }
 
-void edge::setRotationDifference(const Eigen::Quaternionf &rotationDifference) {
+void edge::setRotationDifference(const Eigen::Quaterniond &rotationDifference) {
     edge::rotationDifference = rotationDifference;
 }
 
@@ -92,22 +92,22 @@ void edge::setTypeOfEdge(int typeOfEdge) {// 0=pointCloud    %%%%%%%%%   1 = int
     edge::typeOfEdge = typeOfEdge;
 }
 
-float edge::getTimeStamp() const {
+double edge::getTimeStamp() const {
     return timeStamp;
 }
 
-void edge::setTimeStamp(float timeStamp) {
+void edge::setTimeStamp(double timeStamp) {
     edge::timeStamp = timeStamp;
 }
 
-Eigen::Matrix4f edge::getTransformation(){
-    Eigen::Matrix4f transformation;
+Eigen::Matrix4d edge::getTransformation(){
+    Eigen::Matrix4d transformation;
 
     transformation << 1, 0, 0, this->positionDifference.x(),
             0, 1, 0, this->positionDifference.y(),
             0, 0, 1, this->positionDifference.z(),
             0, 0, 0, 1;//transformation missing currently
-    Eigen::Matrix3f m(this->rotationDifference.toRotationMatrix());
+    Eigen::Matrix3d m(this->rotationDifference.toRotationMatrix());
     transformation.block<3, 3>(0, 0) = m;
     return transformation;
 }

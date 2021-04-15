@@ -23,35 +23,35 @@ public:
         }
     }
 
-    void addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-                 const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
-                 const float covarianceQuaternion,int typeOfEdge);
+    void addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3d &positionDifference,
+                 const Eigen::Quaterniond &rotationDifference, const Eigen::Vector3d covariancePosition,
+                 const double covarianceQuaternion,int typeOfEdge);
 
-    void addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3f &positionDifference,
-                 const Eigen::Quaternionf &rotationDifference, const Eigen::Vector3f covariancePosition,
-                 const float covarianceQuaternion, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,int typeOfEdge);
+    void addEdge(const int fromVertex, const int toVertex, const Eigen::Vector3d &positionDifference,
+                 const Eigen::Quaterniond &rotationDifference, const Eigen::Vector3d covariancePosition,
+                 const double covarianceQuaternion, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,int typeOfEdge);
 
-    void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, const Eigen::Quaternionf &rotationVertex,
-                   const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion,int typeOfVertex);
+    void addVertex(int vertexNumber, const Eigen::Vector3d &positionVertex, const Eigen::Quaterniond &rotationVertex,
+                   const Eigen::Vector3d &covariancePosition, const double covarianceQuaternion,int typeOfVertex);
 
-    void addVertex(int vertexNumber, const Eigen::Vector3f &positionVertex, const Eigen::Quaternionf &rotationVertex,
-                   const Eigen::Vector3f &covariancePosition, const float covarianceQuaternion,
+    void addVertex(int vertexNumber, const Eigen::Vector3d &positionVertex, const Eigen::Quaterniond &rotationVertex,
+                   const Eigen::Vector3d &covariancePosition, const double covarianceQuaternion,
                    pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,int typeOfVertex);
 
-    Eigen::SparseMatrix<float> getInformationMatrix();
+    Eigen::SparseMatrix<double> getInformationMatrix();
 
-    Eigen::SparseMatrix<float> getJacobianMatrix();
+    Eigen::SparseMatrix<double> getJacobianMatrix();
 
-    Eigen::MatrixXf getErrorMatrix();
+    Eigen::MatrixXd getErrorMatrix();
 
     void printCurrentState();
 
     void printCurrentStateGeneralInformation();
 
-    void addToEveryState(std::vector<Eigen::Vector3f> &positionDifferenceVector,
-                         std::vector<Eigen::Quaternionf> &rotationDifferenceVector);
+    void addToEveryState(std::vector<Eigen::Vector3d> &positionDifferenceVector,
+                         std::vector<Eigen::Quaterniond> &rotationDifferenceVector);
 
-    void addToState(Eigen::MatrixXf &vectorToAdd);//from optimization
+    void addToState(Eigen::MatrixXd &vectorToAdd);//from optimization
 
     vertex* getVertexByIndex(int i);
 
@@ -61,13 +61,13 @@ public:
 
     void optimizeGraphWithSlamTopDown(bool verbose);
 
-    void initiallizeSubGraphs(std::deque<float> cellSizes);//cell sizes in order (first 1m cecond 4 m and so on)
+    void initiallizeSubGraphs(std::deque<double> cellSizes);//cell sizes in order (first 1m cecond 4 m and so on)
 
-    void createHierachicalGraph(float cellSizeDes);
+    void createHierachicalGraph(double cellSizeDes);
 
     edge getEdgeBetweenNodes(int fromVertex, int toVertex, std::vector<int> &holdStill);
 
-    Eigen::MatrixXf transformStateDiffToAddVector(std::vector<vertex> &stateBeforeOptimization,
+    Eigen::MatrixXd transformStateDiffToAddVector(std::vector<vertex> &stateBeforeOptimization,
                                                   std::vector<vertex> &stateAfterOptimization) const;
 
     graphSlamSaveStructure getSubGraph();
@@ -76,13 +76,15 @@ public:
 
     void calculateCovarianceInCloseProximity();// calculate the subgraph for the last hierachical graph, and connected cells. then calculate covariances.
 
+    void removeLastEdge();
+
     static const int POINT_CLOUD_USAGE = 0;
     static const int INTEGRATED_POS_USAGE = 1;
 private:
 
-    void removeRowColumn(Eigen::SparseMatrix<float> &matrix, int rowToRemove) const;
+    void removeRowColumn(Eigen::SparseMatrix<double> &matrix, int rowToRemove) const;
 
-    void lookupTableCreation(float minDistanceForNewCell);
+    void lookupTableCreation(double minDistanceForNewCell);
 
     void
     getListofConnectedVertexAndEdges(std::vector<int> &vertexIndicesofICell, std::vector<edge> &listOfContainingEdges,
@@ -102,7 +104,7 @@ private:
     std::vector<edge> edgeList;
     std::vector<vertex> vertexList;
     bool hasHierachicalGraph;
-    float cellSize;
+    double cellSize;
     std::vector<std::vector<int>> lookUpTableCell;// [i][j] i = cell j=vertex (cell of sub graph and vertex of graph)
     graphSlamSaveStructure *hierachicalGraph;
 };
