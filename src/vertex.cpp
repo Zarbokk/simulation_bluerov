@@ -28,12 +28,20 @@ void vertex::setRotationVertex(const Eigen::Quaterniond &rotationVertex) {
     vertex::rotationVertex = rotationVertex;
 }
 
-const pcl::PointCloud<pcl::PointXYZ>::Ptr &vertex::getPointCloud() const {
-    return vertex::pointCloud;
+const pcl::PointCloud<pcl::PointXYZ>::Ptr &vertex::getPointCloudRaw() const {
+    return vertex::pointCloudRaw;
 }
 
-void vertex::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
-    *vertex::pointCloud = *pointCloud;
+void vertex::setPointCloudRaw(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
+    *vertex::pointCloudRaw = *pointCloud;
+}
+
+const pcl::PointCloud<pcl::PointXYZ>::Ptr &vertex::getPointCloudCorrected() const {
+    return vertex::pointCloudCorrected;
+}
+
+void vertex::setPointCloudCorrected(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud) {
+    *vertex::pointCloudCorrected = *pointCloud;
 }
 
 Eigen::Vector3d vertex::getCovariancePosition() const {

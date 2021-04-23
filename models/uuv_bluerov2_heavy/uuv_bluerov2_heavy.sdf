@@ -5,7 +5,7 @@
 
         <link name="base_link">
             <inertial>
-                <mass>11</mass>
+                <mass>11.0</mass>  <!-- was 11-->
                 <inertia>
                     <ixx>0.1</ixx>
                     <ixy>0</ixy>
@@ -28,10 +28,16 @@
                     </cylinder> -->
                 </geometry>
             </visual>
-
+            <collision name="collisionModel">
+              <geometry>
+                  <mesh>
+                    <uri>model://uuv_bluerov2_heavy/meshes/BlueROV2heavy.dae</uri>
+                  </mesh>
+              </geometry>
+            </collision>
         </link>
 
-<!--sensors: -->
+<!--sensors:
         <link name="sonar_link">
           <pose>0 0 0.17 0 0 0</pose>
           <inertial>
@@ -93,7 +99,8 @@
             <parent>base_link</parent>
             <child>sonar_link</child>
         </joint>
-<!-- rotating sonar
+        -->
+<!-- rotating sonar -->
         <include>
           <uri>model://rotatingSonar</uri>
           <pose>0 0 0.2 0 0 0</pose>
@@ -103,7 +110,7 @@
               <child>rotatingSonar::rotating_sonar_base</child>
               <parent>base_link</parent>
         </joint>
--->
+
 <!-- depth camera
           <link name="front_camera_link">
             <pose>0.0 0.0 -0.2 0 0.4 0</pose>
@@ -189,7 +196,6 @@
       <parent>base_link</parent>
       <child>gps::link</child>
     </joint>
-
         <link name="thruster1">
             <pose>0.14 -0.10 0 0 1.570796 0.78539815</pose>
             <inertial>
@@ -686,6 +692,7 @@
             <baroTopic>/baro</baroTopic>
         </plugin>
 
+        <!-- uuv plugin -->
         <plugin name="uuv_plugin" filename="libgazebo_uuv_plugin.so">
             <robotNamespace />
             <baseLinkName>base_link</baseLinkName>
@@ -701,6 +708,8 @@
                 <height_scale_limit>0.05</height_scale_limit>
             </buoyancy>
         </plugin>
+
+
 
         <plugin name="mavlink_interface" filename="libgazebo_mavlink_interface.so">
             <robotNamespace />
@@ -811,8 +820,8 @@
             <gyroscopeRandomWalk>3.8785e-05</gyroscopeRandomWalk>
             <gyroscopeBiasCorrelationTime>1000.0</gyroscopeBiasCorrelationTime>
             <gyroscopeTurnOnBiasSigma>0.0087</gyroscopeTurnOnBiasSigma>
-            <accelerometerNoiseDensity>0.004</accelerometerNoiseDensity>
-            <accelerometerRandomWalk>0.006</accelerometerRandomWalk>
+            <accelerometerNoiseDensity>0.002</accelerometerNoiseDensity>
+            <accelerometerRandomWalk>0.001</accelerometerRandomWalk>
             <accelerometerBiasCorrelationTime>300.0</accelerometerBiasCorrelationTime>
             <accelerometerTurnOnBiasSigma>0.196</accelerometerTurnOnBiasSigma>
         </plugin>

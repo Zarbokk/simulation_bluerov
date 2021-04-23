@@ -13,30 +13,37 @@ class vertex {
 
 public:
     vertex(int vertexNumber, const Eigen::Vector3d &positionVertex, const Eigen::Quaterniond &rotationVertex,
-           int degreeOfFreedom, const Eigen::Vector3d &covariancePosition, const double covarianceQuaternion,int typeOfVertex) {
+           int degreeOfFreedom, const Eigen::Vector3d &covariancePosition, const double covarianceQuaternion,
+           double timeStamp, int typeOfVertex) {
         vertex::vertexNumber = vertexNumber;
         vertex::positionVertex = positionVertex;
         vertex::rotationVertex = rotationVertex;
         pcl::PointCloud<pcl::PointXYZ>::Ptr tmp(new pcl::PointCloud<pcl::PointXYZ>);
-        vertex::pointCloud = tmp;
+        vertex::pointCloudRaw = tmp;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr tmp2(new pcl::PointCloud<pcl::PointXYZ>);
+        vertex::pointCloudCorrected = tmp2;
         vertex::covariancePosition = covariancePosition;
         vertex::covarianceQuaternion = covarianceQuaternion;
         this->typeOfVertex = typeOfVertex;
+        this->timeStamp = timeStamp;
     }
 
     vertex(int vertexNumber, const Eigen::Vector3d &positionVertex, const Eigen::Quaterniond &rotationVertex,
-           int degreeOfFreedom, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,
+           int degreeOfFreedom, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloudRaw1,
            const Eigen::Vector3d &covariancePosition,
-           const double covarianceQuaternion,int typeOfVertex) {
+           const double covarianceQuaternion, double timeStamp, int typeOfVertex) {
         vertex::vertexNumber = vertexNumber;
         vertex::positionVertex = positionVertex;
         vertex::rotationVertex = rotationVertex;
         pcl::PointCloud<pcl::PointXYZ>::Ptr tmp(new pcl::PointCloud<pcl::PointXYZ>);
-        vertex::pointCloud = tmp;
+        vertex::pointCloudRaw = tmp;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr tmp2(new pcl::PointCloud<pcl::PointXYZ>);
+        vertex::pointCloudCorrected = tmp2;
         vertex::covariancePosition = covariancePosition;
         vertex::covarianceQuaternion = covarianceQuaternion;
-        setPointCloud(pointCloud);
+        setPointCloudRaw(pointCloudRaw1);
         this->typeOfVertex = typeOfVertex;
+        this->timeStamp = timeStamp;
     }
 
     int getVertexNumber() const;
@@ -51,9 +58,13 @@ public:
 
     void setRotationVertex(const Eigen::Quaterniond &rotationVertex);
 
-    const pcl::PointCloud<pcl::PointXYZ>::Ptr &getPointCloud() const;
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr &getPointCloudCorrected() const;
 
-    void setPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
+    void setPointCloudCorrected(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
+
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr &getPointCloudRaw() const;
+
+    void setPointCloudRaw(const pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud);
 
     Eigen::Vector3d getCovariancePosition() const;
 
@@ -79,7 +90,8 @@ private:
     Eigen::Quaterniond rotationVertex;// rotation w.r.t. Initial Starting Rotation
     Eigen::Vector3d covariancePosition;
     double covarianceQuaternion;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud;//measurement by edge from this vertex to previous vertex
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloudRaw;//measurement by edge from this vertex to previous vertex
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloudCorrected;//measurement by edge from this vertex to previous vertex
     int typeOfVertex;// 0=pointCloud    %%%%%%%%%   1 = integratedPosDiff
 
     double timeStamp;

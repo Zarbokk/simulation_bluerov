@@ -89,9 +89,6 @@
       <pose>0 0 0 0 0 0</pose>
     </include>
 
-
-
-
     <!-- Add physics -->
     <physics name='default_physics' default='0' type='ode'>
       <gravity>0 0 -9.8066</gravity>

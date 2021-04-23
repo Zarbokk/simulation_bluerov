@@ -32,11 +32,11 @@ public:
                  const double covarianceQuaternion, pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,int typeOfEdge);
 
     void addVertex(int vertexNumber, const Eigen::Vector3d &positionVertex, const Eigen::Quaterniond &rotationVertex,
-                   const Eigen::Vector3d &covariancePosition, const double covarianceQuaternion,int typeOfVertex);
+                   const Eigen::Vector3d &covariancePosition, const double covarianceQuaternion,double timeStamp,int typeOfVertex);
 
     void addVertex(int vertexNumber, const Eigen::Vector3d &positionVertex, const Eigen::Quaterniond &rotationVertex,
                    const Eigen::Vector3d &covariancePosition, const double covarianceQuaternion,
-                   pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,int typeOfVertex);
+                   pcl::PointCloud<pcl::PointXYZ>::Ptr &pointCloud,double timeStamp,int typeOfVertex);
 
     Eigen::SparseMatrix<double> getInformationMatrix();
 
@@ -57,9 +57,11 @@ public:
 
     std::vector<vertex> getVertexList();
 
+    std::vector<edge> *getEdgeList();
+
     void optimizeGraphWithSlam(bool verbose, std::vector<int> &holdStill);
 
-    void optimizeGraphWithSlamTopDown(bool verbose);
+    void optimizeGraphWithSlamTopDown(bool verbose,double cellSize);
 
     void initiallizeSubGraphs(std::deque<double> cellSizes);//cell sizes in order (first 1m cecond 4 m and so on)
 
@@ -80,6 +82,7 @@ public:
 
     static const int POINT_CLOUD_USAGE = 0;
     static const int INTEGRATED_POS_USAGE = 1;
+    static const int FIRST_ENTRY = 2;
 private:
 
     void removeRowColumn(Eigen::SparseMatrix<double> &matrix, int rowToRemove) const;

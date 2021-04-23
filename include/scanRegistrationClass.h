@@ -18,14 +18,14 @@ public:
     {
 
     }
-    Eigen::Matrix4d generalizedIcpRegistrationSimple(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
+    static Eigen::Matrix4d generalizedIcpRegistrationSimple(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
                                                      const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
                                                double &fitnessScore);
-    Eigen::Matrix4d generalizedIcpRegistrationSimple(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
+    static Eigen::Matrix4d generalizedIcpRegistrationSimple(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
                                                      const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
                                                      double &fitnessScore,Eigen::Matrix4d &guess);
 
-    Eigen::Matrix4d generalizedIcpRegistration(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
+    static Eigen::Matrix4d generalizedIcpRegistration(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
                                                const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
                                     pcl::PointCloud<pcl::PointXYZ>::Ptr &Final,
                                     double &fitnessScore,Eigen::Matrix4d &initialGuessTransformation);
@@ -33,7 +33,7 @@ public:
 
 
 
-    Eigen::Matrix4d icpRegistration(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
+    static Eigen::Matrix4d icpRegistration(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudFirstScan,
                                     const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudSecondScan,
                          pcl::PointCloud<pcl::PointXYZ> &Final);
 private:

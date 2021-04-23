@@ -33,7 +33,8 @@ public:
     static void visualizeCurrentGraph(graphSlamSaveStructure &graphSaved, ros::Publisher &publisherPath,
                                       ros::Publisher &publisherCloud, ros::Publisher &publisherMarkerArray,
                                       double sigmaScaling, ros::Publisher &publisherPathGT,
-                                      std::vector<std::vector<measurement>> &groundTruthSorted);
+                                      std::vector<std::vector<measurement>> &groundTruthSorted,
+                                      ros::Publisher &publisherMarkerArrayLoopClosures);
 
     static std::vector<measurement>
     parseCSVFile(std::istream &stream);//this is first line description then keyframe,x,y,z,timestamp
@@ -41,17 +42,23 @@ public:
     static std::vector<std::vector<measurement>> sortToKeyframe(std::vector<measurement> &input);
 
     static void correctPointCloudByPosition(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudScan, std::vector<edge> &posDiff,
-                                            double timestepBeginning);
+                                            double timeStampBeginning);
 
     static void
     calculatePositionOverTime(std::vector<measurement> &angularVelocityList, std::vector<measurement> &bodyVelocityList,
                               std::vector<edge> &posOverTimeEdge,
                               double lastTimeStamp, double currentTimeStamp);
 
-    static bool detectLoopClosure(graphSlamSaveStructure &graphSaved, scanRegistrationClass &registrationClass,
+    static bool detectLoopClosure(graphSlamSaveStructure &graphSaved,
                                   double sigmaScaling, double cutoffFitnessOnDetect);
 
     static std::vector<double> linspace(double start_in, double end_in, int num_in);
+
+    static void correctPointCloudAtPos(int positionToCorrect, graphSlamSaveStructure &currentGraph);
+
+    static void correctEveryPointCloud(graphSlamSaveStructure &currentGraph);
+
+    static void recalculatePCLEdges(graphSlamSaveStructure &currentGraph);
 };
 
 

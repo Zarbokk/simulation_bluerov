@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project(simulation_bluerov)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -256,3 +258,6 @@ target_link_libraries(slamLabyrinth ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(testFile src/testFile.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp)
 target_link_libraries(testFile ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(correctionPCL src/correctionPCL.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp)
+target_link_libraries(correctionPCL ${PCL_LIBRARIES} ${catkin_LIBRARIES})

@@ -27,7 +27,7 @@ def callback(msg: geometry_msgs.msg.PoseStamped, args):
     if np.sqrt(
             (pose_ned.pose.position.x - x_des[current_pos_number]) ** 2 + (
                     pose_ned.pose.position.y - y_des[current_pos_number]) ** 2 + (
-                    pose_ned.pose.position.z - z_des[current_pos_number]) ** 2) < 0.4:  # define R
+                    pose_ned.pose.position.z - z_des[current_pos_number]) ** 2) < 0.5:  # define R
         current_pos_number = current_pos_number + 1
         if current_pos_number > N - 1:
             current_pos_number = 0
@@ -70,7 +70,7 @@ def main():
             data = list(reader)
             # transform data into numpy array
             data = np.array(data).astype(float)
-            nWaypointsBetween = 10
+            nWaypointsBetween = 50
             dataAugmented = np.zeros(((data.shape[0]-1)*nWaypointsBetween,4))
             for i in range(data.shape[0]-1):
                 dataX=np.linspace(data[i,0],data[i+1,0],nWaypointsBetween)

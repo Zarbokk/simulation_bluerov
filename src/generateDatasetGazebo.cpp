@@ -58,8 +58,8 @@ public:
 
     void callbackIMU(const sensor_msgs::Imu &msg) {
         this->currentAngleVelocity.x() = msg.angular_velocity.x;
-        this->currentAngleVelocity.y() = msg.angular_velocity.y;
-        this->currentAngleVelocity.z() = msg.angular_velocity.z;
+        this->currentAngleVelocity.y() = -msg.angular_velocity.y;
+        this->currentAngleVelocity.z() = -msg.angular_velocity.z;
         angularVelocityFile << this->currentKeyFrame << "," << this->currentAngleVelocity.x() << ","
                             << this->currentAngleVelocity.y() << "," << this->currentAngleVelocity.z() << ","
                             << msg.header.stamp << "\n";
@@ -67,8 +67,8 @@ public:
 
     void callbackvelocityBody(const geometry_msgs::TwistStamped &msg) {
         this->currentBodyVelocity.x() = msg.twist.linear.x;
-        this->currentBodyVelocity.y() = msg.twist.linear.y;
-        this->currentBodyVelocity.z() = msg.twist.linear.z;
+        this->currentBodyVelocity.y() = -msg.twist.linear.y;
+        this->currentBodyVelocity.z() = -msg.twist.linear.z;
         bodyVelocityFile << this->currentKeyFrame << "," << this->currentBodyVelocity.x() << ","
                          << this->currentBodyVelocity.y() << "," << this->currentBodyVelocity.z() << ","
                          << msg.header.stamp << "\n";
@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "pmap_marker_publisher");
     ros::start();
 
-    dataGenerationClass tmp = dataGenerationClass("dataset_02");
+    dataGenerationClass tmp = dataGenerationClass("dataset_04");
 
 
     ros::spin();
