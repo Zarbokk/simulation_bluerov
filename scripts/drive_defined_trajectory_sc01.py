@@ -60,7 +60,8 @@ def callback(msg: geometry_msgs.msg.PoseStamped, args):
 def main():
     rospy.init_node('drive_scenario_01')
     rospack = rospkg.RosPack()
-    data_path = rospack.get_path("simulation_bluerov") + '/config/where_to_move_list.csv'
+    #data_path = rospack.get_path("simulation_bluerov") + '/config/where_to_move_list.csv'
+    data_path = rospack.get_path("simulation_bluerov") + '/config/where_to_move_list_with_angles.csv'
     try:
         with open(data_path, 'r') as f:
             reader = csv.reader(f, delimiter=',')
@@ -90,7 +91,7 @@ def main():
             y_des = data[:, 1]
             z_des = data[:, 2]
             yaw_des = data[:, 3]
-            yaw_des = yaw_des / 180 * np.pi
+            yaw_des = yaw_des / 180 * np.pi #from deg to rad
 
             N = data.shape[0]
             print(yaw_des)

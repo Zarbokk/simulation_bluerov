@@ -47,7 +47,7 @@ public:
     static void
     calculatePositionOverTime(std::vector<measurement> &angularVelocityList, std::vector<measurement> &bodyVelocityList,
                               std::vector<edge> &posOverTimeEdge,
-                              double lastTimeStamp, double currentTimeStamp);
+                              double lastTimeStamp, double currentTimeStamp,double stdDev);
 
     static bool detectLoopClosure(graphSlamSaveStructure &graphSaved,
                                   double sigmaScaling, double cutoffFitnessOnDetect);

@@ -339,7 +339,7 @@ graphSlamSaveStructure::addEdge(const int fromVertex, const int toVertex, const 
                                                                      holdStill);//resultingEdge.setFromVertex(indexCellFrom); resultingEdge.setToVertex(indexCellTo);
             resultingEdge.setFromVertex(indexCellFrom);
             resultingEdge.setToVertex(indexCellTo);
-                                                                     bool edgeAlreadyThere = false;
+            bool edgeAlreadyThere = false;
             for (int j = 0; j < hierachicalGraph->edgeList.size(); j++) {
                 if (hierachicalGraph->edgeList[j].getFromVertex() == indexCellFrom &&
                     hierachicalGraph->edgeList[j].getToVertex() == indexCellTo ||
@@ -478,9 +478,8 @@ Eigen::SparseMatrix<double> graphSlamSaveStructure::getJacobianMatrix() {
 
         int fromVertex = this->edgeList[i].getFromVertex();
         int toVertex = this->edgeList[i].getToVertex();
-        Eigen::Vector3d eulerAnglesRotation = this->vertexList[fromVertex].getRotationVertex().toRotationMatrix().eulerAngles(
-                0, 1, 2);
-        double alpha1 = eulerAnglesRotation[2];
+
+        double alpha1 = this->getYawAngle(this->vertexList[fromVertex].getRotationVertex());
         double x1 = this->vertexList[fromVertex].getPositionVertex().x();
         double y1 = this->vertexList[fromVertex].getPositionVertex().y();
 
@@ -632,9 +631,10 @@ Eigen::MatrixXd graphSlamSaveStructure::getErrorMatrix() {
         int fromVertex = this->edgeList[i].getFromVertex();
         int toVertex = this->edgeList[i].getToVertex();
 
-        Eigen::Vector3d eulerAnglesRotation = this->vertexList[fromVertex].getRotationVertex().toRotationMatrix().eulerAngles(
-                0, 1, 2);
-        Eigen::AngleAxisd rotation_vector1(-eulerAnglesRotation(2), Eigen::Vector3d(0, 0, 1));
+        double yawAngle = this->getYawAngle(this->vertexList[fromVertex].getRotationVertex());
+
+
+        Eigen::AngleAxisd rotation_vector1(-yawAngle, Eigen::Vector3d(0, 0, 1));//@TODO should this not be minus?!
         Eigen::Matrix2d currentRotation = rotation_vector1.matrix().block<2, 2>(0, 0);
 
 
@@ -648,15 +648,13 @@ Eigen::MatrixXd graphSlamSaveStructure::getErrorMatrix() {
                 currentRotation * differenceBeforeRotation;
         //calculate angle difference
 
-        double angleDiffVertex = angleDiff(
-                this->vertexList[toVertex].getRotationVertex().toRotationMatrix().eulerAngles(0, 1,
-                                                                                              2)[2],
-                eulerAnglesRotation(2));
+        double angleDiffVertex = angleDiff(this->getYawAngle(this->vertexList[toVertex].getRotationVertex()),yawAngle);
 
-        double angleErrorDiff = angleDiff(
-                this->edgeList[i].getRotationDifference().toRotationMatrix().eulerAngles(0, 1, 2)[2],
-                angleDiffVertex);
+        double angleErrorDiff = angleDiff( this->getYawAngle(this->edgeList[i].getRotationDifference()),angleDiffVertex);
+        //tf2::getYaw(this->edgeList[i].getRotationDifference());
+        //Eigen::Quaterniond tmpQuat();
 
+        //tmpQuat = ;
         error(i * this->degreeOfFreedom + 2, 0) = angleErrorDiff;
     }
     return error;
@@ -670,7 +668,7 @@ void graphSlamSaveStructure::printCurrentState() {
         std::cout << this->vertexList[i].getPositionVertex() << std::endl;
         std::cout << "Rot:" << std::endl;
         std::cout <<
-                  this->vertexList[i].getRotationVertex().toRotationMatrix().eulerAngles(0, 1, 2)[2] *
+                  this->getYawAngle(this->vertexList[i].getRotationVertex()) *
                   180 / M_PI << std::endl;
     }
 }
@@ -698,10 +696,6 @@ void graphSlamSaveStructure::addToEveryState(std::vector<Eigen::Vector3d> &posit
     for (int i = 0; i < this->numberOfVertex; i++) {
         Eigen::Vector3d currentStatePos = this->vertexList[i].getPositionVertex();
         Eigen::Quaterniond currentStateRotation = this->vertexList[i].getRotationVertex();
-//        Eigen::Vector3d eulerAnglesRotation = this->vertexList[i].getRotationVertex().toRotationMatrix().eulerAngles(
-//                0, 1, 2);
-//        double alpha1 = eulerAnglesRotation[2];
-
 
         this->vertexList[i].setPositionVertex(currentStatePos + positionDifferenceVector[i]);
 
@@ -748,9 +742,9 @@ std::vector<edge> *graphSlamSaveStructure::getEdgeList() {
     return &this->edgeList;
 }
 
-void graphSlamSaveStructure::optimizeGraphWithSlamTopDown(bool verbose,double cellSize) {
+void graphSlamSaveStructure::optimizeGraphWithSlamTopDown(bool verbose, double cellSize) {
     if (this->hasHierachicalGraph) {
-        this->hierachicalGraph->optimizeGraphWithSlamTopDown(verbose,this->cellSize);
+        this->hierachicalGraph->optimizeGraphWithSlamTopDown(verbose, this->cellSize);
         //std::vector<vertex> stateAfterOptimization = this->hierachicalGraph->getVertexList();
         //test if difference between x(k) und x(k-1) is "big" if yes: change graph k-1 else do nothing
         std::vector<int> cellListToUpdate;
@@ -759,7 +753,7 @@ void graphSlamSaveStructure::optimizeGraphWithSlamTopDown(bool verbose,double ce
                                            this->vertexList[this->lookUpTableCell[currentHierachicalSupGraphCell.getVertexNumber()][0]].getPositionVertex();
             Eigen::Quaterniond diffRotation = currentHierachicalSupGraphCell.getRotationVertex() *
                                               this->vertexList[this->lookUpTableCell[currentHierachicalSupGraphCell.getVertexNumber()][0]].getRotationVertex().inverse();
-            if (diffPosition.norm() > cellSize*0.01) {//@TODO change this to dependent on the cell size
+            if (diffPosition.norm() > cellSize * 0.01) {//@TODO change this to dependent on the cell size
                 //propagate down
                 for (int indexVertex : this->lookUpTableCell[currentHierachicalSupGraphCell.getVertexNumber()]) {// also is done for every cell member
                     this->vertexList[indexVertex].setPositionVertex(
@@ -924,7 +918,7 @@ void graphSlamSaveStructure::optimizeGraphWithSlam(bool verbose, std::vector<int
         //hMatrix.block<3, 3>(0, 0) = hMatrix.block<3, 3>(0, 0) + Eigen::MatrixXd::Identity(3, 3);
 
         //test scaling
-        multiplicator = 1 / ((double) hMatrix.rows());
+        multiplicator = 1;//1 / ((double) hMatrix.rows());
         hMatrix = multiplicator * hMatrix;
         bMatrix = multiplicator * bMatrix;
 
@@ -1305,8 +1299,8 @@ Eigen::MatrixXd graphSlamSaveStructure::transformStateDiffToAddVector(std::vecto
     for (int i = 0; i < this->lookUpTableCell.size(); i++) {
         Eigen::Vector3d posdiff =
                 stateAfterOptimization[i].getPositionVertex() - stateBeforeOptimization[i].getPositionVertex();
-        double angleDiff = stateAfterOptimization[i].getRotationVertex().toRotationMatrix().eulerAngles(0, 1, 2)[2] -
-                           stateBeforeOptimization[i].getRotationVertex().toRotationMatrix().eulerAngles(0, 1, 2)[2];
+        double angleDiff = this->getYawAngle(stateAfterOptimization[i].getRotationVertex()) -
+                this->getYawAngle(stateBeforeOptimization[i].getRotationVertex());
         for (int j : this->lookUpTableCell[i]) {
             vectorToAdd(j * this->degreeOfFreedom + 0, 0) = posdiff[0];
             vectorToAdd(j * this->degreeOfFreedom + 1, 0) = posdiff[1];
@@ -1513,4 +1507,48 @@ bool graphSlamSaveStructure::checkIfDirectConnectionExists(int vertexIndex0, int
         }
     }
     return false;
+}
+
+double graphSlamSaveStructure::getYawAngle(Eigen::Quaterniond quaternionYaw) {
+    return  tf2::getYaw(tf2::Quaternion(quaternionYaw.x(), quaternionYaw.y(), quaternionYaw.z(), quaternionYaw.w()));
+}
+
+void graphSlamSaveStructure::saveGraphJson(std::string nameSavingFile){
+
+    Json::Value keyFrames;
+
+    int currentKeyFrameNumber = 0;
+    for(int i = 0 ; i<this->numberOfVertex;i++){
+        if(this->vertexList[i].getTypeOfVertex()==graphSlamSaveStructure::POINT_CLOUD_USAGE){
+            // if point cloud is used then save this keyframe
+            Json::Value positionOfKeyframe;
+            positionOfKeyframe["x"] = this->vertexList[i].getPositionVertex()[0];
+            positionOfKeyframe["y"] = this->vertexList[i].getPositionVertex()[1];
+            positionOfKeyframe["z"] = this->vertexList[i].getPositionVertex()[2];
+            positionOfKeyframe["roll"] = 0;
+            positionOfKeyframe["pitch"] = 0;
+            positionOfKeyframe["yaw"] = this->getYawAngle(this->vertexList[i].getRotationVertex());
+            Json::Value pointCloud;
+
+            for(int j = 0 ; j < this->vertexList[i].getPointCloudCorrected()->points.size() ; j++){
+                Json::Value tmpPoint;
+                tmpPoint["x"] = this->vertexList[i].getPointCloudCorrected()->points[j].x;
+                tmpPoint["y"] = this->vertexList[i].getPointCloudCorrected()->points[j].y;
+                tmpPoint["z"] = this->vertexList[i].getPointCloudCorrected()->points[j].z;
+                pointCloud[j]["point"] = tmpPoint;
+            }
+            keyFrames[currentKeyFrameNumber]["position"]=positionOfKeyframe;
+            keyFrames[currentKeyFrameNumber]["pointCloud"]=pointCloud;
+            currentKeyFrameNumber++;
+        }
+    }
+
+    // create the main object
+    Json::Value outputText;
+    outputText["keyFrames"] = keyFrames;
+
+    std::ofstream ifs;
+    ifs.open("/home/tim/DataForTests/DataFromSimulationJson/"+nameSavingFile);
+    ifs << outputText << '\n';
+    ifs.close();
 }

@@ -4,10 +4,10 @@
 
 #include <slamToolsRos.h>
 
-double scalingAngle = 0.05;
+double scalingAngle = 0.25;
 double scalingAllg = 0.25;
-double sigmaScaling = 3;
-double noiseVelocityIntigration = 0.1;
+double sigmaScaling = 2;
+double noiseVelocityIntigration = 0.3;
 
 void loadCSVFiles(std::vector<std::vector<measurement>> &groundTruthSorted,
                   std::vector<std::vector<measurement>> &angularVelocitySorted,
@@ -86,7 +86,7 @@ void debugPlotting(pcl::PointCloud<pcl::PointXYZ>::Ptr lastScan, pcl::PointCloud
 
 int
 main(int argc, char **argv) {
-    std::string folderExperiment = "dataset_04";// folder of experiment
+    std::string folderExperiment = "withoutRotation";// folder of experiment
     ros::init(argc, argv, "slamLabyrinth01");
     ros::start();
     ros::NodeHandle n_;
@@ -101,9 +101,9 @@ main(int argc, char **argv) {
     publisherRegistrationPCL = n_.advertise<sensor_msgs::PointCloud2>("registratedPCL", 10);
     publisherBeforeCorrection = n_.advertise<sensor_msgs::PointCloud2>("beforeCorrection", 10);
     publisherAfterCorrection = n_.advertise<sensor_msgs::PointCloud2>("afterCorrection", 10);
-    //scanRegistrationClass registrationClass = scanRegistrationClass();
 
-    //slamToolsRos toolsObject;
+
+
     std::vector<std::vector<measurement>> groundTruthSorted;
     std::vector<std::vector<measurement>> angularVelocitySorted;
     std::vector<std::vector<measurement>> bodyVelocitySorted;
@@ -135,36 +135,31 @@ main(int argc, char **argv) {
     double fitnessScore;
     bool debug = true;
 
-    //graphSlamSaveStructure graphSaved = initializeGraph(currentScan);
     sensor_msgs::PointCloud2 firstScanMsg;
     pcl::toROSMsg(*currentScan, firstScanMsg);
     firstScanMsg.header.frame_id = "map_ned";
     //add first vertex
     graphSlamSaveStructure graphSaved(3);
-    graphSaved.addVertex(0, Eigen::Vector3d(0, 0, 0), Eigen::Quaterniond(1, 0, 0, 0),
+    graphSaved.addVertex(0, Eigen::Vector3d(0, 0, 0), Eigen::Quaterniond( 1, 0, 0, 0),
                          Eigen::Vector3d(0, 0, 0), 0, lastTimeKeyFrame, graphSlamSaveStructure::FIRST_ENTRY);
 
     //first step
     slamToolsRos::calculatePositionOverTime(angularVelocitySorted[1], bodyVelocitySorted[1],
-                                            posDiffOverTimeEdges, lastTimeKeyFrame, timeCurrentGroundTruth);
+                                            posDiffOverTimeEdges, lastTimeKeyFrame, timeCurrentGroundTruth,0.0);
 
     //add vertex and so on to graphSaved
     appendEdgesToGraph(graphSaved, posDiffOverTimeEdges);
     graphSaved.getVertexList().back().setPointCloudRaw(currentScan);
-
-//    slamToolsRos::correctPointCloudByPosition(currentScan, posDiffOverTimeEdges, lastTimeKeyFrame);
+    //correct last PCL
     slamToolsRos::correctPointCloudAtPos(graphSaved.getVertexList().back().getVertexNumber(), graphSaved);
-    slamToolsRos::correctPointCloudByPosition(currentScan, posDiffOverTimeEdges, lastTimeKeyFrame);
 
-//    graphSaved.getVertexList().back().setPointCloudCorrected(currentScan);
-//    graphSaved.getVertexList().back().setTypeOfVertex(graphSlamSaveStructure::POINT_CLOUD_USAGE);
 
     //initialize hierachical slam
     std::deque<double> subgraphs{1, 3};
     graphSaved.initiallizeSubGraphs(subgraphs);
 
-    //for (int currentKeyFrame = 2; currentKeyFrame < groundTruthSorted.size(); currentKeyFrame++) {
-    for (int currentKeyFrame = 2; currentKeyFrame < 160; currentKeyFrame++) {
+    for (int currentKeyFrame = 2; currentKeyFrame < groundTruthSorted.size(); currentKeyFrame++) {
+    //for (int currentKeyFrame = 2; currentKeyFrame < 100; currentKeyFrame++) {
         *lastScan = *graphSaved.getVertexList().back().getPointCloudCorrected();
         lastTimeKeyFrame = timeCurrentGroundTruth;
         timeCurrentGroundTruth = groundTruthSorted[currentKeyFrame][0].timeStamp;
@@ -178,7 +173,7 @@ main(int argc, char **argv) {
         //forward calculate pose(relative)(with velocities) add edges+vertexes
         slamToolsRos::calculatePositionOverTime(angularVelocitySorted[currentKeyFrame],
                                                 bodyVelocitySorted[currentKeyFrame],
-                                                posDiffOverTimeEdges, lastTimeKeyFrame, timeCurrentGroundTruth);
+                                                posDiffOverTimeEdges, lastTimeKeyFrame, timeCurrentGroundTruth,0.8);// was 0.8
         //sort in posDiffOverTime and calculate vertices to be added
         appendEdgesToGraph(graphSaved, posDiffOverTimeEdges);
         graphSaved.getVertexList().back().setPointCloudRaw(currentScan);
@@ -198,40 +193,27 @@ main(int argc, char **argv) {
             debugPlotting(lastScan, Final, currentScan, graphSaved.getVertexList().back().getPointCloudCorrected(),
                           publisherLastPCL, publisherRegistrationPCL, publisherBeforeCorrection, publisherAfterCorrection);
         }
-
-        //fitnessScore = fitnessScore*fitnessScore;
         std::cout << "current Fitness Score: " << sqrt(fitnessScore) << std::endl;
-        //add edge for currentTransformation
+        //add edge for currentTransformation(registration)
         Eigen::Quaterniond qTMP(currentTransformation.block<3, 3>(0, 0));
         graphSaved.addEdge(graphSaved.getVertexList().size() - 10, graphSaved.getVertexList().size() - 1,
                            currentTransformation.block<3, 1>(0, 3), qTMP,
                            Eigen::Vector3d(sqrt(fitnessScore), sqrt(fitnessScore), 0),
-                           (double) sqrt(fitnessScore),
+                           0.25*sqrt(fitnessScore),
                            graphSlamSaveStructure::POINT_CLOUD_USAGE);//@TODO still not sure about size
 
-        //add pointCloud to Vertex and change type
-        //graphSaved.getVertexList().back().setPointCloudCorrected(currentScan);
-        //graphSaved.getVertexList().back().setTypeOfVertex(graphSlamSaveStructure::POINT_CLOUD_USAGE);
-
         //watch for loop closure
-        slamToolsRos::detectLoopClosure(graphSaved, sigmaScaling, 0.7);
-        //optimization of graph
+        slamToolsRos::detectLoopClosure(graphSaved, sigmaScaling, 1.0);//was 0.7
+        //optimization of graph (hierachical graph)
         graphSaved.optimizeGraphWithSlamTopDown(false, 0.05);
         std::vector<int> holdStill{0};
-        //graphSaved.optimizeGraphWithSlam(false, holdStill);
-        bool calcEverythingAnew = false;//for debugging
-        if (calcEverythingAnew) {
-            std::vector<int> holdStill{0};
-            graphSaved.optimizeGraphWithSlam(false, holdStill);
-        }
-        //graphSaved.optimizeGraphWithSlam(false,holdStill);
+
         graphSaved.calculateCovarianceInCloseProximity();
         //visualization of graph in ros
 
         slamToolsRos::visualizeCurrentGraph(graphSaved, publisherPathOverTime, publisherKeyFrameClouds,
                                             publisherMarkerArray, sigmaScaling, publisherPathOverTimeGT,
                                             groundTruthSorted, publisherMarkerArrayLoopClosures);
-
         std::cout << "next: " << currentKeyFrame << std::endl;
     }
     std::vector<int> holdStill{0};
@@ -240,7 +222,7 @@ main(int argc, char **argv) {
                                         publisherMarkerArray, sigmaScaling, publisherPathOverTimeGT,
                                         groundTruthSorted, publisherMarkerArrayLoopClosures);
 
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 1; i++) {
         //correct all point clouds
         slamToolsRos::correctEveryPointCloud(graphSaved);
         //recalculate the edges
@@ -259,5 +241,8 @@ main(int argc, char **argv) {
                                             publisherMarkerArray, sigmaScaling, publisherPathOverTimeGT,
                                             groundTruthSorted, publisherMarkerArrayLoopClosures);
     }
+
+    graphSaved.saveGraphJson("testfile.json");
+
     return (0);
 }

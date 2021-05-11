@@ -3,7 +3,12 @@
 //
 #include "edge.h"
 #include "vertex.h"
+#include <fstream>
 #include<Eigen/SparseCholesky>
+#include "json.h"
+//#include <tf2/LinearMath/Quaternion.h>
+//#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/utils.h>
 
 #ifndef SIMULATION_BLUEROV_GRAPHSLAMSAVESTRUCTURE_H
 #define SIMULATION_BLUEROV_GRAPHSLAMSAVESTRUCTURE_H
@@ -80,6 +85,8 @@ public:
 
     void removeLastEdge();
 
+    void saveGraphJson(std::string nameSavingFile);
+
     static const int POINT_CLOUD_USAGE = 0;
     static const int INTEGRATED_POS_USAGE = 1;
     static const int FIRST_ENTRY = 2;
@@ -100,6 +107,8 @@ private:
     static std::vector<int> joinTwoLists(std::vector<int> &i0, std::vector<int> &i1);
 
     bool checkIfDirectConnectionExists(int vertexIndex0,int vertexIndex1);
+
+    static double getYawAngle(Eigen::Quaterniond quaternionYaw);
 
     int degreeOfFreedom;//3 for [x y alpha] or 6 for [x y z alpha beta gamma]
     int numberOfEdges;

@@ -247,17 +247,17 @@ target_link_libraries(example_keyframe_class ${PCL_LIBRARIES} ${catkin_LIBRARIES
 #add_executable(graph_optimization_testing src/graphOptimizationTest.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp)
 #target_link_libraries(graph_optimization_testing ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(firstCompleteSlamTest src/firstCompleteSlamTest.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp)
+add_executable(firstCompleteSlamTest src/firstCompleteSlamTest.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/jsoncpp.cpp)
 target_link_libraries(firstCompleteSlamTest ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(generate_dataset_gazebo src/generateDatasetGazebo.cpp)
 target_link_libraries(generate_dataset_gazebo ${catkin_LIBRARIES})
 
-add_executable(slamLabyrinth src/slamOfLabyrinth01.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp)
+add_executable(slamLabyrinth src/slamOfLabyrinth01.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp src/jsoncpp.cpp)
 target_link_libraries(slamLabyrinth ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(testFile src/testFile.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp)
+add_executable(testFile src/testFile.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp src/jsoncpp.cpp src/hilbertMap.cpp)
 target_link_libraries(testFile ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(correctionPCL src/correctionPCL.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp)
+add_executable(correctionPCL src/correctionPCL.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp src/jsoncpp.cpp)
 target_link_libraries(correctionPCL ${PCL_LIBRARIES} ${catkin_LIBRARIES})
