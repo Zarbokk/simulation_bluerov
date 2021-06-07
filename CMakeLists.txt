@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 project(simulation_bluerov)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -9,11 +10,12 @@ project(simulation_bluerov)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED roscpp rospy std_msgs genmsg gazebo_dev gazebo_plugins gazebo_ros roscpp image_transport pcl_ros)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs genmsg gazebo_dev gazebo_plugins gazebo_ros roscpp image_transport pcl_ros soft20)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV REQUIRED)
 find_package (gazebo REQUIRED)
 find_package(PCL 1.10 REQUIRED COMPONENTS common io visualization)
+#find_package(soft20 REQUIRED)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -110,7 +112,7 @@ generate_messages(DEPENDENCIES std_msgs)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES #simulation_bluerov
+  LIBRARIES
     image_sonar_ros_plugin
   CATKIN_DEPENDS
         gazebo_dev
@@ -133,10 +135,9 @@ include
         ${GAZEBO_MSG_INCLUDE_DIRS}
         ${Boost_INCLUDE_DIR}
         ${OpenCV_INCLUDE_DIRS}
-)
-link_directories(
         ${GAZEBO_LIBRARY_DIRS}
 )
+
 
 add_library(image_sonar_ros_plugin src/gazebo_ros_image_sonar.cpp)
 target_link_libraries(image_sonar_ros_plugin ${OGRE_LIBRARIES} ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES})
@@ -162,7 +163,7 @@ list(APPEND UUV_SENSOR_ROS_PLUGINS_LIST image_sonar_ros_plugin)
 ## target back to the shorter version for ease of user use
 ## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
 # set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
-
+bin
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
@@ -247,8 +248,8 @@ target_link_libraries(example_keyframe_class ${PCL_LIBRARIES} ${catkin_LIBRARIES
 #add_executable(graph_optimization_testing src/graphOptimizationTest.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp)
 #target_link_libraries(graph_optimization_testing ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(firstCompleteSlamTest src/firstCompleteSlamTest.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/jsoncpp.cpp)
-target_link_libraries(firstCompleteSlamTest ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+#add_executable(firstCompleteSlamTest src/firstCompleteSlamTest.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/jsoncpp.cpp)
+#target_link_libraries(firstCompleteSlamTest ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(generate_dataset_gazebo src/generateDatasetGazebo.cpp)
 target_link_libraries(generate_dataset_gazebo ${catkin_LIBRARIES})
@@ -259,5 +260,11 @@ target_link_libraries(slamLabyrinth ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 add_executable(testFile src/testFile.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp src/jsoncpp.cpp src/hilbertMap.cpp)
 target_link_libraries(testFile ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(correctionPCL src/correctionPCL.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp src/jsoncpp.cpp)
-target_link_libraries(correctionPCL ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+#add_executable(correctionPCL src/correctionPCL.cpp src/scanRegistrationClass.cpp src/graphSlamSaveStructure.cpp src/edge.cpp src/vertex.cpp src/slamToolsRos.cpp src/jsoncpp.cpp)
+#target_link_libraries(correctionPCL ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(soft20TestFile src/soft20TestFile.cpp )
+target_link_libraries(soft20TestFile fftw3 ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(correlationRotationSoft20 src/correlationRotationSoft20.cpp )
+target_link_libraries(correlationRotationSoft20 fftw3 ${PCL_LIBRARIES} ${catkin_LIBRARIES})
